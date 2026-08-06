@@ -25,6 +25,7 @@ export type UIStrings = {
   intentLabel: string;
   intentPlaceholder: string;
   detectLanguageButton: string;
+  showThisPageInPrefix: string;
   detectingLanguageButton: string;
   resultsInEnglishToggle: string;
   resultsInMyLanguageToggle: string;
@@ -86,6 +87,7 @@ export const EN: UIStrings = {
   intentLabel: "What you want handled",
   intentPlaceholder: 'e.g. "quiero una cita con mi dentista lo antes posible"',
   detectLanguageButton: "Show this page in my language",
+  showThisPageInPrefix: "Show this page in",
   detectingLanguageButton: "Detecting your language…",
   resultsInEnglishToggle: "View in English",
   resultsInMyLanguageToggle: "View in my language",

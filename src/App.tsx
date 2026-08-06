@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { EN, type UIStrings } from "./i18n/strings.js";
 
 type Target = {
@@ -22,6 +22,20 @@ const RTL_LOCALE_PREFIXES = new Set(["ar", "he", "fa", "ur", "ps"]);
 
 function isRtlLocale(locale: string): boolean {
   return RTL_LOCALE_PREFIXES.has(locale.split("-")[0].toLowerCase());
+}
+
+// The name of a language in its OWN language (endonym), e.g. "es" -> "Español",
+// "vi" -> "Tiếng Việt" -- so the person reading the button recognizes it.
+// Returns "" if we can't resolve a name.
+function languageEndonym(locale: string): string {
+  const lang = locale.split("-")[0].toLowerCase();
+  try {
+    const name = new Intl.DisplayNames([locale], { type: "language" }).of(lang);
+    if (!name || name.toLowerCase() === lang) return "";
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  } catch {
+    return "";
+  }
 }
 
 type CallResult = {
@@ -181,6 +195,9 @@ export default function App() {
   const [interpretError, setInterpretError] = useState("");
   const [interpreting, setInterpreting] = useState(false);
   const [localizing, setLocalizing] = useState(false);
+  // Language detected from what they've typed so far, used to name the button
+  // ("Show this page in Español") before they click it. "" = not yet known.
+  const [detectedLocale, setDetectedLocale] = useState("");
 
   // Screen 2 state
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -203,6 +220,34 @@ export default function App() {
   function removeTarget(id: string) {
     setTargets((prev) => (prev.length > 1 ? prev.filter((t) => t.id !== id) : prev));
   }
+
+  // Quietly detect the language of what they're typing (debounced) so the
+  // button can name it -- "Show this page in Español" -- before they click.
+  // This only sets a label; it never flips the page on its own (that stays an
+  // explicit button press), so there's no surprise re-render mid-typing.
+  useEffect(() => {
+    const text = intentText.trim();
+    if (text.length < 8) {
+      setDetectedLocale("");
+      return;
+    }
+    const handle = setTimeout(async () => {
+      try {
+        const response = await fetch("/api/intent/detect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
+        });
+        if (response.ok) {
+          const body = await response.json();
+          setDetectedLocale(body.detectedLocale || "");
+        }
+      } catch {
+        // Leave the label as-is if detection fails.
+      }
+    }, 700);
+    return () => clearTimeout(handle);
+  }, [intentText]);
 
   // Flip the whole UI into `detectedLocale` (labels, buttons, disclosure,
   // results) so a non-native speaker can finish the form in their own language.
@@ -243,12 +288,17 @@ export default function App() {
     if (text.length < 3 || localizing) return;
     setLocalizing(true);
     try {
-      const response = await fetch("/api/intent/detect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text })
-      });
-      const detected = response.ok ? (await response.json()).detectedLocale : "en";
+      // Reuse the language the debounced detector already found; only ask the
+      // server again if we don't have one yet.
+      let detected = detectedLocale;
+      if (!detected) {
+        const response = await fetch("/api/intent/detect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
+        });
+        detected = response.ok ? (await response.json()).detectedLocale : "en";
+      }
       await applyDetectedLocale(detected || "en");
     } catch {
       // Leave the UI in its current language on failure.
@@ -411,7 +461,13 @@ export default function App() {
               onClick={handleDetectAndLocalize}
               disabled={localizing || intentText.trim().length < 3}
             >
-              {localizing ? s.detectingLanguageButton : s.detectLanguageButton}
+              {localizing
+                ? s.detectingLanguageButton
+                : detectedLocale &&
+                    !detectedLocale.toLowerCase().startsWith("en") &&
+                    languageEndonym(detectedLocale)
+                  ? `${s.showThisPageInPrefix} ${languageEndonym(detectedLocale)}`
+                  : s.detectLanguageButton}
             </button>
 
             <div className="field-row">
