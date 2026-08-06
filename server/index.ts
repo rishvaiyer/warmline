@@ -12,11 +12,22 @@ import {
 import { getTemplate } from "../src/domain/registry.js";
 import { interpretIntent } from "../src/domain/interpret.js";
 import { translateMissionFields, translateResultStrings } from "../src/domain/translate.js";
+import { getAnthropicClient, hasAnthropicKey, TRANSLATE_MODEL } from "../src/domain/llm.js";
 
 const app = Fastify({ logger: true, bodyLimit: 64 * 1024 });
 const port = Number(process.env.PORT || 8787);
 const allowedPhoneNumbers = parseAllowedPhoneNumbers(process.env.CALLE_ALLOWED_NUMBERS);
 const calleRegion = process.env.CALLE_REGION || "US";
+
+// In-memory cache of translated UI-string bundles, keyed by target locale.
+// Never persisted; a server restart just re-translates on next use.
+const uiLocalizeCache = new Map<string, Record<string, string>>();
+
+function extractJsonBlock(text: string): string {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  return fenced ? fenced[1].trim() : trimmed;
+}
 
 // Real calls require the explicit opt-in flag, a CALL-E API key, AND at least
 // one server-side allowlisted number. If any of those is missing, the server
@@ -54,6 +65,61 @@ app.post("/api/intent/interpret", async (request, reply) => {
 
   const plan = await interpretIntent(text, userLocale);
   return { plan };
+});
+
+// Auto-localizes the whole UI to whatever language the person typed their
+// request in (see src/i18n/strings.ts for the EN bundle this translates).
+// English in, or no ANTHROPIC_API_KEY, is always a no-op passthrough -- this
+// route must never 500, since the intake flow depends on it not blocking.
+app.post("/api/ui/localize", async (request, reply) => {
+  const body = request.body as { locale?: unknown; strings?: unknown } | undefined;
+  const locale = typeof body?.locale === "string" ? body.locale : "en";
+  const strings: Record<string, string> =
+    body?.strings && typeof body.strings === "object" && !Array.isArray(body.strings)
+      ? (body.strings as Record<string, string>)
+      : {};
+
+  if (locale.toLowerCase().startsWith("en") || !hasAnthropicKey()) {
+    return { strings };
+  }
+
+  const cached = uiLocalizeCache.get(locale);
+  if (cached) {
+    return { strings: cached };
+  }
+
+  try {
+    const client = getAnthropicClient();
+    const response = await client.messages.create({
+      model: TRANSLATE_MODEL,
+      max_tokens: 4096,
+      system: [
+        `Translate each value in the given JSON object of UI copy from English to the locale "${locale}".`,
+        "Preserve meaning and tone -- this is interface copy (headings, labels, buttons, short sentences), not prose.",
+        "Preserve any {placeholder}-style interpolation tokens exactly as written, and never translate the product name \"Warmline\".",
+        "Respond with ONLY a JSON object using the exact same keys as the input, each value replaced by its translation. No commentary, no markdown fences."
+      ].join(" "),
+      messages: [{ role: "user", content: JSON.stringify(strings) }]
+    });
+
+    const text = response.content.find((block) => block.type === "text")?.text ?? "";
+    const parsed = JSON.parse(extractJsonBlock(text)) as Record<string, unknown>;
+
+    const result: Record<string, string> = {};
+    for (const key of Object.keys(strings)) {
+      const translatedValue = parsed[key];
+      result[key] =
+        typeof translatedValue === "string" && translatedValue.trim().length > 0
+          ? translatedValue
+          : strings[key];
+    }
+
+    uiLocalizeCache.set(locale, result);
+    return { strings: result };
+  } catch (error) {
+    request.log.error(error, "UI localize failed, falling back to English strings");
+    return { strings };
+  }
 });
 
 app.post("/api/missions/run", async (request, reply) => {

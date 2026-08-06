@@ -531,8 +531,9 @@ body {
   margin: 0;
   padding: 0.9rem 1.05rem;
   background: var(--accent-soft);
-  border-left: 3px solid var(--accent);
-  border-radius: 0 var(--radius-field) var(--radius-field) 0;
+  border-inline-start: 3px solid var(--accent);
+  border-start-end-radius: var(--radius-field);
+  border-end-end-radius: var(--radius-field);
   font-family: var(--font-display);
   font-size: 1.05rem;
   font-style: normal;

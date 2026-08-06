@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { EN, type UIStrings } from "./i18n/strings.js";
 
 type Target = {
   id: string;
@@ -12,7 +13,16 @@ type Plan = {
   callGoal: string;
   disclosureLine: string;
   venueHint?: string;
+  detectedLocale?: string;
 };
+
+// Locales whose script reads right-to-left; drives document.dir when the UI
+// auto-localizes to whatever language the person typed their request in.
+const RTL_LOCALE_PREFIXES = new Set(["ar", "he", "fa", "ur"]);
+
+function isRtlLocale(locale: string): boolean {
+  return RTL_LOCALE_PREFIXES.has(locale.split("-")[0].toLowerCase());
+}
 
 type CallResult = {
   targetId: string;
@@ -127,10 +137,12 @@ function BackIcon() {
   );
 }
 
-const PROGRESS_STEPS = ["What you need", "Review", "Result"] as const;
-
 export default function App() {
   const [screen, setScreen] = useState<1 | 2 | 3>(1);
+
+  // Auto-localized UI copy. Starts as EN; handleInterpret swaps in the
+  // translated bundle once it detects a non-English request.
+  const [s, setS] = useState<UIStrings>(EN);
 
   // Screen 1 state
   const [intentText, setIntentText] = useState("");
@@ -166,15 +178,15 @@ export default function App() {
     setInterpretError("");
 
     if (intentText.trim().length < 3) {
-      setInterpretError("Say a bit more about what you need.");
+      setInterpretError(s.errorIntentTooShort);
       return;
     }
     if (targets.some((t) => !t.venueName.trim() || !t.phoneE164.trim())) {
-      setInterpretError("Every target needs a name and a phone number in E.164 format (e.g. +12025550123).");
+      setInterpretError(s.errorTargetsIncomplete);
       return;
     }
     if (!disclosureAccepted) {
-      setInterpretError("Please confirm you understand this will place a call on your behalf.");
+      setInterpretError(s.errorDisclosureRequired);
       return;
     }
 
@@ -187,13 +199,40 @@ export default function App() {
       });
       const body = await response.json();
       if (!response.ok) {
-        setInterpretError(body.error ?? "Could not interpret that request.");
+        setInterpretError(body.error ?? s.errorInterpretFailed);
         return;
       }
-      setPlan(body.plan as Plan);
+      const receivedPlan = body.plan as Plan;
+      setPlan(receivedPlan);
+
+      // Auto-localize the whole UI to the language the person typed their
+      // request in, so a non-native speaker can finish the form without
+      // ever switching the language selector themselves. English (or a
+      // repeat of the locale already on screen) is a no-op; any failure
+      // here just leaves the UI in English/its current state.
+      const detectedLocale = receivedPlan.detectedLocale || "en";
+      if (!detectedLocale.toLowerCase().startsWith("en") && detectedLocale !== userLocale) {
+        try {
+          const localizeResponse = await fetch("/api/ui/localize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ locale: detectedLocale, strings: EN })
+          });
+          const localizeBody = await localizeResponse.json();
+          if (localizeResponse.ok && localizeBody.strings) {
+            setS(localizeBody.strings as UIStrings);
+            setUserLocale(detectedLocale);
+            document.documentElement.lang = detectedLocale;
+            document.documentElement.dir = isRtlLocale(detectedLocale) ? "rtl" : "ltr";
+          }
+        } catch {
+          // Keep everything English if localize fails.
+        }
+      }
+
       setScreen(2);
     } catch {
-      setInterpretError("Could not reach the server. Is it running?");
+      setInterpretError(s.errorNetwork);
     } finally {
       setInterpreting(false);
     }
@@ -228,13 +267,13 @@ export default function App() {
       });
       const responseBody = await response.json();
       if (!response.ok) {
-        setRunError(responseBody.error ?? "The mission could not run.");
+        setRunError(responseBody.error ?? s.errorRunFailed);
         return;
       }
       setRunResult(responseBody as RunResponse);
       setScreen(3);
     } catch {
-      setRunError("Could not reach the server. Is it running?");
+      setRunError(s.errorNetwork);
     } finally {
       setRunning(false);
     }
@@ -251,6 +290,8 @@ export default function App() {
     setInterpretError("");
   }
 
+  const progressSteps = [s.stepIntake, s.stepReview, s.stepResult];
+
   return (
     <div className="app-shell">
       <div className="app">
@@ -259,16 +300,16 @@ export default function App() {
             <WordmarkIcon />
             <span className="wordmark-text">Warmline</span>
           </div>
-          <h1>We'll make the call, so you don't have to.</h1>
-          <p>Say what you need, in any language. We'll call the business and read the answer back to you.</p>
+          <h1>{s.headline}</h1>
+          <p>{s.subhead}</p>
         </header>
 
-        <ol className="progress-steps" aria-label="Progress">
-          {PROGRESS_STEPS.map((label, i) => {
+        <ol className="progress-steps" aria-label={s.progressAriaLabel}>
+          {progressSteps.map((label, i) => {
             const stepNumber = (i + 1) as 1 | 2 | 3;
             const state = stepNumber === screen ? "current" : stepNumber < screen ? "done" : "upcoming";
             return (
-              <li key={label} className={`progress-step is-${state}`}>
+              <li key={stepNumber} className={`progress-step is-${state}`}>
                 <span className="progress-dot" aria-hidden="true">
                   {state === "done" ? <CheckIcon /> : stepNumber}
                 </span>
@@ -280,23 +321,23 @@ export default function App() {
 
         {screen === 1 && (
           <section className="card">
-            <h2 className="card-title">What do you need help with?</h2>
-            <p className="card-subtitle">Tell us in your own words — any language is fine.</p>
+            <h2 className="card-title">{s.screen1Title}</h2>
+            <p className="card-subtitle">{s.screen1Subtitle}</p>
 
             <label className="field">
-              <span className="field-label">What you want handled</span>
+              <span className="field-label">{s.intentLabel}</span>
               <textarea
                 className="intent-textarea"
                 value={intentText}
                 onChange={(e) => setIntentText(e.target.value)}
-                placeholder='e.g. "quiero una cita con mi dentista lo antes posible"'
+                placeholder={s.intentPlaceholder}
                 rows={4}
               />
             </label>
 
             <div className="field-row">
               <label className="field">
-                <span className="field-label">Your language</span>
+                <span className="field-label">{s.yourLanguageLabel}</span>
                 <select value={userLocale} onChange={(e) => setUserLocale(e.target.value)}>
                   {LOCALE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
@@ -307,9 +348,9 @@ export default function App() {
               </label>
 
               <label className="field">
-                <span className="field-label">Call in a different language (optional)</span>
+                <span className="field-label">{s.callLanguageLabel}</span>
                 <select value={callLocale} onChange={(e) => setCallLocale(e.target.value)}>
-                  <option value="">Same as my language</option>
+                  <option value="">{s.callLanguageSameOption}</option>
                   {LOCALE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
@@ -321,27 +362,27 @@ export default function App() {
 
             <div className="card-divider" role="presentation" />
 
-            <h2 className="card-title">Who should we call?</h2>
+            <h2 className="card-title">{s.targetsTitle}</h2>
             <div className="target-list">
               {targets.map((target, index) => (
                 <div className="target-row" key={target.id}>
                   <div className="target-fields">
                     <label className="field">
-                      <span className="field-label">Business name</span>
+                      <span className="field-label">{s.businessNameLabel}</span>
                       <input
                         type="text"
                         value={target.venueName}
                         onChange={(e) => updateTarget(target.id, { venueName: e.target.value })}
-                        placeholder="Dr. Smith Dental"
+                        placeholder={s.businessNamePlaceholder}
                       />
                     </label>
                     <label className="field">
-                      <span className="field-label">Phone number (E.164)</span>
+                      <span className="field-label">{s.phoneLabel}</span>
                       <input
                         type="text"
                         value={target.phoneE164}
                         onChange={(e) => updateTarget(target.id, { phoneE164: e.target.value })}
-                        placeholder="+12025550123"
+                        placeholder={s.phonePlaceholder}
                       />
                     </label>
                   </div>
@@ -352,7 +393,7 @@ export default function App() {
                       onClick={() => removeTarget(target.id)}
                     >
                       <RemoveIcon />
-                      Remove
+                      {s.removeButton}
                     </button>
                   )}
                 </div>
@@ -360,7 +401,7 @@ export default function App() {
               {targets.length < 5 && (
                 <button type="button" className="link-button" onClick={addTarget}>
                   <AddIcon />
-                  Add another business
+                  {s.addAnotherButton}
                 </button>
               )}
             </div>
@@ -372,10 +413,7 @@ export default function App() {
                 onChange={(e) => setDisclosureAccepted(e.target.checked)}
               />
               <ShieldIcon />
-              <span>
-                I understand an AI assistant will call on my behalf, disclose itself as an AI, and will not
-                book, pay, or commit to anything without my review.
-              </span>
+              <span>{s.disclosureText}</span>
             </label>
 
             {interpretError && (
@@ -385,34 +423,34 @@ export default function App() {
             )}
 
             <button type="button" className="primary-button" onClick={handleInterpret} disabled={interpreting}>
-              {interpreting ? "Understanding your request…" : "Review the call"}
+              {interpreting ? s.understandingButton : s.reviewCallButton}
             </button>
           </section>
         )}
 
         {screen === 2 && plan && (
           <section className="card">
-            <h2 className="card-title">Here's exactly what we'll do</h2>
-            <p className="card-subtitle">Take a look before anything happens. Nothing is final yet.</p>
+            <h2 className="card-title">{s.screen2Title}</h2>
+            <p className="card-subtitle">{s.screen2Subtitle}</p>
 
             <div className="plan-block">
-              <span className="plan-block-label">We'll call</span>
+              <span className="plan-block-label">{s.planCallLabel}</span>
               <p className="plan-venues">{targets.map((t) => t.venueName).join(", ")}</p>
             </div>
 
             <div className="plan-block">
-              <span className="plan-block-label">And ask</span>
+              <span className="plan-block-label">{s.planAskLabel}</span>
               <blockquote className="plan-goal">{plan.callGoal}</blockquote>
             </div>
 
             <div className="plan-block">
-              <span className="plan-block-label">We'll say, first thing</span>
+              <span className="plan-block-label">{s.planSayLabel}</span>
               <p className="plan-disclosure">&ldquo;{plan.disclosureLine}&rdquo;</p>
             </div>
 
             <div className="reassurance-note">
               <CheckIcon />
-              <span>We won't book, pay, or commit to anything on this call — only you can approve that.</span>
+              <span>{s.planReassurance}</span>
             </div>
 
             {runError && (
@@ -424,10 +462,10 @@ export default function App() {
             <div className="button-row">
               <button type="button" className="secondary-button" onClick={() => setScreen(1)}>
                 <BackIcon />
-                Back
+                {s.backButton}
               </button>
               <button type="button" className="primary-button" onClick={handleRun} disabled={running}>
-                {running ? "Preparing the call…" : "Make the call"}
+                {running ? s.preparingCallButton : s.makeCallButton}
               </button>
             </div>
           </section>
@@ -435,8 +473,10 @@ export default function App() {
 
         {screen === 3 && runResult && (
           <section className="card">
-            <h2 className="card-title">Here's what we found</h2>
-            <p className="mode-note">Mode: {runResult.mode}</p>
+            <h2 className="card-title">{s.screen3Title}</h2>
+            <p className="mode-note">
+              {s.modeLabel} {runResult.mode}
+            </p>
 
             <ul className="results-list">
               {runResult.results.map((result) => {
@@ -446,14 +486,16 @@ export default function App() {
                     {isBest && (
                       <div className="result-best-badge">
                         <CheckIcon />
-                        Best answer
+                        {s.bestAnswerBadge}
                       </div>
                     )}
                     <div className="result-header">
                       <strong className="result-venue">{result.venueName}</strong>
                       <span className={`outcome-chip outcome-${result.status}`}>{result.outcome}</span>
                     </div>
-                    <p className="result-confidence">Confidence: {result.confidence}</p>
+                    <p className="result-confidence">
+                      {s.confidenceLabel} {result.confidence}
+                    </p>
                     <dl className="result-data">
                       {Object.entries(result.data).map(([key, value]) => (
                         <div className="result-data-row" key={key}>
@@ -463,7 +505,9 @@ export default function App() {
                       ))}
                     </dl>
                     {result.followUpRequired && (
-                      <p className="result-followup">Follow-up: {result.followUpInstructions}</p>
+                      <p className="result-followup">
+                        {s.followUpLabel} {result.followUpInstructions}
+                      </p>
                     )}
                     {result.evidence.length > 0 && (
                       <ul className="result-evidence">
@@ -479,11 +523,11 @@ export default function App() {
 
             <div className="reassurance-note">
               <PhoneIcon />
-              <span>Nothing was booked or paid for. Review the details above before you act on them.</span>
+              <span>{s.resultsReassurance}</span>
             </div>
 
             <button type="button" className="primary-button" onClick={startOver}>
-              Start over
+              {s.startOverButton}
             </button>
           </section>
         )}
