@@ -67,6 +67,65 @@ app.post("/api/intent/interpret", async (request, reply) => {
   return { plan };
 });
 
+// Detect the language of a piece of text by its script (offline, no key needed).
+function detectLocaleByScript(text: string): string | null {
+  const ranges: Array<[RegExp, string]> = [
+    [/[઀-૿]/, "gu"], // Gujarati
+    [/[ऀ-ॿ]/, "hi"], // Devanagari
+    [/[ঀ-৿]/, "bn"], // Bengali
+    [/[਀-੿]/, "pa"], // Gurmukhi (Punjabi)
+    [/[஀-௿]/, "ta"], // Tamil
+    [/[ఀ-౿]/, "te"], // Telugu
+    [/[ഀ-ൿ]/, "ml"], // Malayalam
+    [/[؀-ۿ]/, "ar"], // Arabic script
+    [/[֐-׿]/, "he"], // Hebrew
+    [/[가-힣]/, "ko"], // Hangul
+    [/[぀-ヿ]/, "ja"], // Kana
+    [/[一-鿿]/, "zh"], // CJK Han
+    [/[Ѐ-ӿ]/, "ru"], // Cyrillic
+    [/[Ͱ-Ͽ]/, "el"], // Greek
+    [/[฀-๿]/, "th"], // Thai
+    [/[԰-֏]/, "hy"], // Armenian
+    [/[Ⴀ-ჿ]/, "ka"], // Georgian
+    [/[ក-៿]/, "km"], // Khmer
+    [/[က-႟]/, "my"], // Burmese
+    [/[ሀ-፿]/, "am"] // Ethiopic (Amharic)
+  ];
+  for (const [re, code] of ranges) {
+    if (re.test(text)) return code;
+  }
+  return null;
+}
+
+async function detectLocale(text: string): Promise<string> {
+  const byScript = detectLocaleByScript(text);
+  if (byScript) return byScript;
+  if (!hasAnthropicKey()) return "en";
+  try {
+    const client = getAnthropicClient();
+    const response = await client.messages.create({
+      model: TRANSLATE_MODEL,
+      max_tokens: 16,
+      system:
+        "Identify the language of the user's text. Respond with ONLY its BCP-47 language code (e.g. es, fr, de, vi, tl). Nothing else.",
+      messages: [{ role: "user", content: text.slice(0, 500) }]
+    });
+    const raw = (response.content.find((b) => b.type === "text")?.text ?? "").trim().toLowerCase();
+    const match = raw.match(/[a-z]{2,3}(-[a-z]{2,4})?/);
+    return match ? match[0] : "en";
+  } catch {
+    return "en";
+  }
+}
+
+// Lightweight detection for the on-blur auto-localize trigger. Never 500s.
+app.post("/api/intent/detect", async (request) => {
+  const body = request.body as { text?: unknown } | undefined;
+  const text = typeof body?.text === "string" ? body.text : "";
+  if (text.trim().length < 3) return { detectedLocale: "en" };
+  return { detectedLocale: await detectLocale(text) };
+});
+
 // Auto-localizes the whole UI to whatever language the person typed their
 // request in (see src/i18n/strings.ts for the EN bundle this translates).
 // English in, or no ANTHROPIC_API_KEY, is always a no-op passthrough -- this

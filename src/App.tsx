@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { EN, type UIStrings } from "./i18n/strings.js";
 
 type Target = {
@@ -199,6 +199,60 @@ export default function App() {
     setTargets((prev) => (prev.length > 1 ? prev.filter((t) => t.id !== id) : prev));
   }
 
+  // Remember the last intent text we already ran language detection on, so
+  // blurring the field repeatedly (without editing) doesn't re-detect.
+  const detectedForTextRef = useRef("");
+
+  // Flip the whole UI into `detectedLocale` (labels, buttons, disclosure,
+  // results) so a non-native speaker can finish the form in their own language.
+  // English, or a repeat of what's already on screen, is a no-op; any failure
+  // just leaves the UI in its current language.
+  async function applyDetectedLocale(detectedLocale: string): Promise<void> {
+    if (
+      !detectedLocale ||
+      detectedLocale.toLowerCase().startsWith("en") ||
+      detectedLocale === userLocale
+    ) {
+      return;
+    }
+    try {
+      const localizeResponse = await fetch("/api/ui/localize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ locale: detectedLocale, strings: EN })
+      });
+      const localizeBody = await localizeResponse.json();
+      if (localizeResponse.ok && localizeBody.strings) {
+        setS(localizeBody.strings as UIStrings);
+        setUserLocale(detectedLocale);
+        document.documentElement.lang = detectedLocale;
+        document.documentElement.dir = isRtlLocale(detectedLocale) ? "rtl" : "ltr";
+      }
+    } catch {
+      // Keep everything in its current language if localize fails.
+    }
+  }
+
+  // As soon as the person finishes typing their request, detect its language
+  // and flip the UI -- before they even reach the "who to call" fields.
+  async function handleIntentBlur() {
+    const text = intentText.trim();
+    if (text.length < 8 || text === detectedForTextRef.current) return;
+    detectedForTextRef.current = text;
+    try {
+      const response = await fetch("/api/intent/detect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      });
+      if (!response.ok) return;
+      const body = await response.json();
+      await applyDetectedLocale(body.detectedLocale || "en");
+    } catch {
+      // Ignore detection failures; the UI stays in its current language.
+    }
+  }
+
   async function handleInterpret() {
     setInterpretError("");
 
@@ -230,30 +284,9 @@ export default function App() {
       const receivedPlan = body.plan as Plan;
       setPlan(receivedPlan);
 
-      // Auto-localize the whole UI to the language the person typed their
-      // request in, so a non-native speaker can finish the form without
-      // ever switching the language selector themselves. English (or a
-      // repeat of the locale already on screen) is a no-op; any failure
-      // here just leaves the UI in English/its current state.
-      const detectedLocale = receivedPlan.detectedLocale || "en";
-      if (!detectedLocale.toLowerCase().startsWith("en") && detectedLocale !== userLocale) {
-        try {
-          const localizeResponse = await fetch("/api/ui/localize", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ locale: detectedLocale, strings: EN })
-          });
-          const localizeBody = await localizeResponse.json();
-          if (localizeResponse.ok && localizeBody.strings) {
-            setS(localizeBody.strings as UIStrings);
-            setUserLocale(detectedLocale);
-            document.documentElement.lang = detectedLocale;
-            document.documentElement.dir = isRtlLocale(detectedLocale) ? "rtl" : "ltr";
-          }
-        } catch {
-          // Keep everything English if localize fails.
-        }
-      }
+      // Catch-all: if on-blur detection didn't already flip the language
+      // (short text, edited since, or blur never fired), do it now.
+      await applyDetectedLocale(receivedPlan.detectedLocale || "en");
 
       setScreen(2);
     } catch {
@@ -363,6 +396,7 @@ export default function App() {
                 className="intent-textarea"
                 value={intentText}
                 onChange={(e) => setIntentText(e.target.value)}
+                onBlur={handleIntentBlur}
                 placeholder={s.intentPlaceholder}
                 rows={4}
               />
