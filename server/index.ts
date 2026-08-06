@@ -361,6 +361,71 @@ app.post("/api/missions/run", async (request, reply) => {
   return { missionId: mission.id, mode: "real", results, resultsEnglish };
 });
 
+// Voice callback: after the task is done, Warmline can call the PERSON back and
+// read them the outcome out loud, in their own language -- for anyone who would
+// rather hear it than read it. Same allowlist + real-calls gating as any other
+// call; mock mode just acknowledges without dialing.
+app.post("/api/missions/callback", async (request, reply) => {
+  const body = (request.body ?? {}) as { phoneE164?: string; locale?: string; summary?: string };
+  const phone = (body.phoneE164 ?? "").trim();
+  const locale = (body.locale ?? "en-US").trim() || "en-US";
+  const summary = (body.summary ?? "").trim();
+
+  if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
+    return reply.code(400).send({ error: "A phone number in E.164 format is required (e.g. +12025550123)." });
+  }
+  if (!summary) {
+    return reply.code(400).send({ error: "There is nothing to read back yet." });
+  }
+
+  if (!realCallsEnabled) {
+    return { mode: "mock", status: "queued" };
+  }
+  if (!allowedPhoneNumbers.has(phone)) {
+    return reply.code(403).send({
+      error: "Callback blocked. Your number must be on the server-side CALLE_ALLOWED_NUMBERS list."
+    });
+  }
+
+  const idempotencyKey = makeIdempotencyKey("callback", phone, String(summary.length));
+  if (inFlightKeys.has(idempotencyKey)) {
+    return reply.code(409).send({ error: "A callback to this number is already in progress." });
+  }
+  inFlightKeys.add(idempotencyKey);
+
+  const task = [
+    "You are Warmline, an automated AI assistant, calling the person who asked you to handle a task.",
+    `Speak entirely in the recipient's own language (locale: ${locale}).`,
+    "First, warmly say that this is an automated call from Warmline with the results of their request, and that they do not need to do anything.",
+    "Then read them this outcome, clearly and briefly:",
+    summary,
+    "Do not ask them for any information, and do not take any action on their behalf. When you have delivered the message, thank them and end the call."
+  ].join("\n");
+
+  try {
+    await getCalleClient().calls.createAndWait(
+      {
+        task,
+        recipient: { phone, region: regionForCallLocale(locale), locale },
+        resultSchema: {
+          type: "object",
+          additionalProperties: false,
+          required: ["delivered"],
+          properties: { delivered: { type: "boolean" } }
+        },
+        metadata: { workflow: "callback", idempotency_key: idempotencyKey }
+      },
+      { idempotencyKey, timeoutMs: 5 * 60 * 1000 }
+    );
+    return { mode: "real", status: "delivered" };
+  } catch (error) {
+    request.log.error(error, "Warmline callback failed");
+    return reply.code(502).send({ error: "The callback could not be completed." });
+  } finally {
+    inFlightKeys.delete(idempotencyKey);
+  }
+});
+
 const webRoot = resolve(process.cwd(), "dist");
 if (existsSync(webRoot)) {
   await app.register(fastifyStatic, {

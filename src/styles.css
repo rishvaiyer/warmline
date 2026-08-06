@@ -88,33 +88,59 @@ body {
   padding-top: 0.25rem;
 }
 
-/* One-tap "back to English" -- pinned right so the centered wordmark stays put. */
-.english-reset-button {
+/* Always-available language switcher, pinned top-right so the centered wordmark
+   stays put. The globe icon signals "change language" at a glance. */
+.lang-switcher {
   position: absolute;
   right: 0;
   top: 50%;
   transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.55rem 0.3rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid #c9c4b8;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--accent);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.lang-switcher:hover {
+  background: #fff;
+  border-color: var(--accent);
+}
+
+.lang-switcher-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.lang-switcher-select {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  background: transparent;
   font: inherit;
   font-size: 0.82rem;
   font-weight: 600;
-  padding: 0.4rem 0.75rem;
-  border-radius: 999px;
-  border: 1px solid #c9c4b8;
-  background: rgba(255, 255, 255, 0.7);
-  color: #5f635c;
+  color: #4a4e47;
+  padding-right: 0.4rem;
+  max-width: 42vw;
   cursor: pointer;
-  transition: background 0.15s ease, transform 0.15s ease;
 }
 
-.english-reset-button:hover {
-  background: #fff;
-  transform: translateY(-50%) translateY(-1px);
+.lang-switcher-select:focus-visible {
+  outline: none;
+  border-radius: 6px;
+  box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
 @media (max-width: 460px) {
-  .english-reset-button {
-    font-size: 0.75rem;
-    padding: 0.35rem 0.6rem;
+  .lang-switcher-select {
+    font-size: 0.76rem;
+    max-width: 38vw;
   }
 }
 
@@ -1012,6 +1038,72 @@ body {
   .result-item {
     background: #1e201c;
   }
+}
+
+/* Voice-callback card on the results screen. */
+.callback-card {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-field);
+  background: rgba(255, 255, 255, 0.5);
+  padding: 1.1rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.callback-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+
+.callback-subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.callback-row {
+  display: flex;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.callback-input {
+  flex: 1 1 12rem;
+  font: inherit;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-field);
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--ink);
+}
+
+.callback-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.callback-row .secondary-button {
+  flex: 0 0 auto;
+}
+
+.callback-status {
+  margin: 0;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.callback-status.is-ok {
+  color: var(--success);
+}
+
+.callback-status.is-err {
+  color: var(--error);
 }
 
 /* Respect users who ask for less motion: drop decorative animation and

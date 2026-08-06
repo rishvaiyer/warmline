@@ -71,6 +71,13 @@ export type UIStrings = {
   followUpLabel: string;
   resultsReassurance: string;
   startOverButton: string;
+  callbackTitle: string;
+  callbackSubtitle: string;
+  callbackPhoneLabel: string;
+  callbackButton: string;
+  callbackCalling: string;
+  callbackDone: string;
+  callbackError: string;
 };
 
 export const EN: UIStrings = {
@@ -78,7 +85,7 @@ export const EN: UIStrings = {
   headlineLine1: "You say what you need.",
   headlineLine2: "We make the call.",
   subhead:
-    "Tell us what you need, in any language. Warmline calls the business, gets a real answer, and reads it back to you. You approve every call before it happens. Built for anyone who finds phone calls hard.",
+    "Tell us what you need, in any language. Warmline calls the business, gets a real answer, and gives it back to you in writing. You approve every call before it happens. The whole thing is typed and read, so you never have to hear or speak on a call. Built for Deaf and hard-of-hearing callers, non-native speakers, and anyone who finds phone calls hard.",
   trustDisclosed: "AI-disclosed on every call",
   trustNoCommit: "Never books or pays",
   trustApprove: "You approve first",
@@ -134,5 +141,12 @@ export const EN: UIStrings = {
   confidenceLabel: "Confidence:",
   followUpLabel: "Follow-up:",
   resultsReassurance: "Nothing was booked or paid for. Review the details above before you act on them.",
-  startOverButton: "Start over"
+  startOverButton: "Start over",
+  callbackTitle: "Prefer to hear it?",
+  callbackSubtitle: "Warmline can call you and read these results out loud, in your language.",
+  callbackPhoneLabel: "Your phone number",
+  callbackButton: "Call me with the results",
+  callbackCalling: "Calling you…",
+  callbackDone: "Done. Warmline is calling you now with the results.",
+  callbackError: "That callback could not be completed. Please try again."
 };

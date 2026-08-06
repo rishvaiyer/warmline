@@ -1,114 +1,191 @@
-# Warmline
+<div align="center">
 
-An accessibility-first calling concierge. Say what you need, in any language, plus who to call — Warmline
-turns that into a plan you approve, places the call (mock by default; real calls opt-in, see below), and
-reports the answer back in your own language.
+# 🌷 Warmline
 
-Built for non-native speakers and people with phone anxiety: you never have to make the call yourself.
+**An accessibility-first calling concierge.**
+
+Say what you need, in any language. Warmline makes the phone call for you,
+and gives you the answer back in writing, in your own language.
+
+![Built on CALL-E](https://img.shields.io/badge/built%20on-CALL--E-235f4a?style=for-the-badge)
+&nbsp;
+![Accessibility first](https://img.shields.io/badge/accessibility-first-be6b35?style=for-the-badge)
+&nbsp;
+![License MIT](https://img.shields.io/badge/license-MIT-235f4a?style=for-the-badge)
+
+React 19 · TypeScript · Fastify · powered by [CALL-E](https://call-e.devpost.com/)
+
+</div>
+
+---
+
+## The idea
+
+Phone calls are a wall for a lot of people. If you are Deaf or hard of hearing,
+if English is not your first language, or if calling a stranger fills you with
+dread, a simple "call the clinic and ask when they open" can be genuinely hard.
+
+Warmline takes that whole task off your plate. You type what you need, in
+whatever language you think in. Warmline turns it into a plan you approve, places
+the call through CALL-E, and hands the answer back to you **in writing, in your
+language**. The entire experience is typed and read, so **you never have to hear
+or speak on a call.**
+
+> Built for **Deaf and hard-of-hearing callers**, **non-native speakers**, and
+> **anyone who finds phone calls hard.**
+
+## How it works
+
+```mermaid
+flowchart LR
+    A["🗣️ You type what you need<br/>in any language"] --> B["🧠 Warmline drafts a plan<br/>you review and approve"]
+    B --> C["📞 CALL-E places the call<br/>in the right language"]
+    C --> D["📝 The answer, in writing,<br/>in your language"]
+
+    style A fill:#dfece3,stroke:#235f4a,color:#20231e
+    style B fill:#fffdf7,stroke:#d8d2c5,color:#20231e
+    style C fill:#f7e5d8,stroke:#be6b35,color:#20231e
+    style D fill:#dfece3,stroke:#235f4a,color:#20231e
+```
+
+A calm three-screen flow: **describe → review → results.** Nothing calls anyone
+until you say so.
+
+<!-- Screenshots: drop UI captures into docs/screenshots/ and reference them here. -->
+
+## Speaks the user's language, everywhere
+
+Language is not a setting you hunt for. Warmline meets people where they are:
+
+- **Auto-detect from what you type.** Write your request in any language, and the
+  button offers to flip the page into it by name: *"Show this page in Español."*
+- **Or pick it directly.** Choosing from the language dropdown translates the
+  whole interface instantly, even before you have typed anything, for someone who
+  cannot read the English form at all.
+- **An in-language "loading" moment.** While the page switches, the wait itself
+  already speaks their language.
+- **Answers in two languages.** Results come back in the person's language *and*
+  English, with a one-tap toggle, so an English-speaking friend or family member
+  can read along.
+- **Or hear it out loud.** When the task is done, Warmline can call the person
+  back and read the results aloud in their language, on top of the written
+  answer, for anyone who would rather listen than read.
+- **A language switcher is always in the top-right**, so it is never a hunt.
+- **Right-to-left aware** for Arabic, Farsi, Urdu, and Hebrew.
+
+Two independent "language knobs" make this work:
+
+| Knob | Controls | Powered by |
+|------|----------|------------|
+| `userLocale` | The interface and the written answer | LLM translation (Claude or OpenAI) |
+| `callLocale` | The language the agent **speaks on the phone** | CALL-E's region + locale |
+
+A live example of the interface translating itself:
+
+| English | Español (detected live) |
+|---------|-------------------------|
+| Show this page in my language | Mostrar esta página en mi idioma |
+| View in English | Ver en inglés |
 
 ## Built on CALL-E
 
-Warmline places its real phone calls through [**CALL-E**](https://call-e.devpost.com/) ("Your Code Is
-Calling"), an agentic calling platform: you hand it a task and a phone number, and its voice agent makes
-the call and hands back a structured result. CALL-E is what turns Warmline from a nice intent form into
-something that actually reaches a human on the other end.
+Warmline places its real phone calls through [**CALL-E**](https://call-e.devpost.com/)
+("Your Code Is Calling"), an agentic calling platform: you hand it a task and a
+phone number, and its voice agent makes the call and hands back a structured
+result. CALL-E is what turns Warmline from a nice intent form into something that
+actually reaches a human on the other end.
 
-**How the integration works** (`server/index.ts`): for each approved target, Warmline calls
-`CalleClient.calls.createAndWait(...)` from the `@call-e/calle` SDK, passing:
+**How the integration works** (`server/index.ts`): for each approved target,
+Warmline calls `CalleClient.calls.createAndWait(...)` from the `@call-e/calle`
+SDK, passing:
 
-- **`task`** — the per-mission call goal Warmline generated from the user's intent (e.g. "ask for the
-  earliest appointment; do not book anything"), always prefixed with a spoken AI-disclosure line.
-- **`recipient`** — the business phone in E.164, plus a **`locale`** (the `callLocale`) and a
-  **`region`** so the call can happen in a different language than the person's own UI language.
-  CALL-E ties the language its agent *speaks* to the recipient region (Spanish under `MX`, Hindi under
-  `IN`, Arabic under `AE`, and so on), so Warmline maps the chosen `callLocale` to a region CALL-E
-  supports that language in (`regionForCallLocale` in `server/index.ts`), falling back to
-  `CALLE_REGION` for anything unmapped.
-- **`resultSchema`** — the mission's structured-output schema, so CALL-E returns typed fields
-  (availability, price, outcome, evidence) rather than a blob of text.
+- **`task`** — the per-mission call goal Warmline generated from the user's intent
+  (e.g. "ask for the earliest appointment; do not book anything"), always prefixed
+  with a spoken AI-disclosure line.
+- **`recipient`** — the business phone in E.164, plus a **`locale`** (the
+  `callLocale`) and a **`region`** so the call can happen in a different language
+  than the person's own interface. CALL-E ties the language its agent *speaks* to
+  the recipient region (Spanish under `MX`, Hindi under `IN`, Arabic under `AE`,
+  and so on), so Warmline maps the chosen `callLocale` to a region CALL-E supports
+  that language in (`regionForCallLocale`), falling back to `CALLE_REGION`.
+- **`resultSchema`** — the mission's structured-output schema, so CALL-E returns
+  typed fields (availability, price, outcome, evidence) instead of a blob of text.
 
-Warmline wraps every CALL-E call in its own trust layer so "call anyone" stays safe: an **approval-first
-plan review** the user must confirm, a spoken **AI disclosure**, a **server-side allowlist**
-(`CALLE_ALLOWED_NUMBERS`), **E.164 validation**, a **max of 5 targets**, per-call **idempotency keys**,
-and a hard rule that the agent never books, pays, or commits anything on the user's behalf. Real calls
-are **off by default** and only run when `ALLOW_REAL_CALLS=true`, `CALLE_API_KEY` is set, and the number
-is allowlisted (see [Environment](#environment)); otherwise Warmline uses a deterministic mock engine.
+## Trust and safety
 
-## Current state
+"Call anyone" only stays safe with guardrails. Every CALL-E call is wrapped in:
 
-- Intent box -> plan review -> results, three-screen flow.
-- Intent interpretation (`src/domain/interpret.ts`): real LLM classification + field extraction via
-  either `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` (see [LLM provider](#llm-provider) below), falling back
-  to a keyword classifier otherwise (or if the LLM call fails).
-- Four mission templates: lost & found, appointment scout, reachability check, generic.
-- Call engine (`server/index.ts`): mock by default. Real CALL-E calls only run when
-  `ALLOW_REAL_CALLS=true`, `CALLE_API_KEY` is set, and the target is in the server-side
-  `CALLE_ALLOWED_NUMBERS` allowlist — any of those missing keeps the server in mock mode.
-- Translation boundaries (`src/domain/translate.ts`): real LLM translation (batched per boundary) when
-  an LLM key is configured; no-op when `userLocale === callLocale`; otherwise a `[locale] ` marker
-  stub, same as the no-key fallback.
+- ✅ **Approval-first review** — you confirm the plan before anything dials.
+- ✅ **Spoken AI disclosure** — the agent always says it is an AI.
+- ✅ **Server-side allowlist** (`CALLE_ALLOWED_NUMBERS`) and **E.164 validation**.
+- ✅ **Never books, pays, or commits** anything on your behalf.
+- ✅ **Idempotency keys** per call and a **max of 5 targets**.
+- ✅ **Off by default** — real calls run only when `ALLOW_REAL_CALLS=true`,
+  `CALLE_API_KEY` is set, and the number is allowlisted. Otherwise Warmline uses a
+  deterministic mock engine.
 
-## LLM provider
+## Under the hood
 
-Warmline works with either an Anthropic key or an OpenAI key — set whichever one you have:
+- **Intent interpretation** (`src/domain/interpret.ts`): real LLM classification
+  and field extraction, with a keyword-classifier fallback if no key is set.
+- **Four mission templates**: lost & found, appointment scout, reachability check,
+  and a generic catch-all, each with its own intake and result schema.
+- **Translation boundaries** (`src/domain/translate.ts`): batched LLM translation
+  at each language edge, a no-op when the two locales match.
+- **Provider-agnostic LLM layer** (`src/domain/llm.ts`): works with **either** an
+  Anthropic key or an OpenAI key. If both are set, Anthropic is preferred. An
+  OpenAI key pasted into `ANTHROPIC_API_KEY` by mistake still works, since
+  Warmline only treats it as Anthropic if it starts with `sk-ant`.
+- **Fully offline-safe**: with no keys set, everything falls back to keyword
+  interpretation, marker-stub translation, offline locale detection, and mock
+  calls, with no network requests at all.
 
-- `ANTHROPIC_API_KEY` — used for interpretation, translation, and UI localization via Claude.
-- `OPENAI_API_KEY` — used for the same features via OpenAI, if no Anthropic key is present.
-- **If both are set, Anthropic is preferred.**
-- An OpenAI key pasted into `ANTHROPIC_API_KEY` by mistake also works: Warmline only treats
-  `ANTHROPIC_API_KEY` as an Anthropic credential if it looks like one (starts with `sk-ant`); otherwise
-  it's used as the OpenAI key automatically. So it doesn't matter which of the two env var names you put
-  an OpenAI key in.
-- Neither set: keyword-based interpretation, marker-stub translation, offline script-based locale
-  detection, mock calls. No network calls, fully offline-safe.
-
-See `src/domain/llm.ts` for the provider-selection logic.
-
-## Environment
-
-Copy `.env.example` to `.env` and fill in what you need:
-
-- Nothing set: keyword-based interpretation, marker-stub translation, mock calls. No network calls,
-  fully offline-safe.
-- `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` only: real LLM interpretation + translation, calls still
-  mocked.
-- An LLM key + `ALLOW_REAL_CALLS=true` + `CALLE_API_KEY` + `CALLE_ALLOWED_NUMBERS`: real phone
-  calls via CALL-E, restricted to the allowlisted numbers.
-
-## Run locally
+## Quickstart
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Open `http://localhost:5173`. The Vite dev server proxies `/api` to `http://localhost:8787`.
+Open `http://localhost:5173`. The Vite dev server proxies `/api` to
+`http://localhost:8787`.
 
-## Production build
+Production build:
 
 ```bash
 pnpm build
 pnpm start
 ```
 
+## Environment
+
+Copy `.env.example` to `.env` and set what you need:
+
+| What you set | What you get |
+|--------------|--------------|
+| Nothing | Keyword interpretation, stub translation, mock calls. Fully offline. |
+| `ANTHROPIC_API_KEY` **or** `OPENAI_API_KEY` | Real LLM interpretation, translation, and UI localization. Calls still mocked. |
+| An LLM key **+** `ALLOW_REAL_CALLS=true` **+** `CALLE_API_KEY` **+** `CALLE_ALLOWED_NUMBERS` | Real phone calls via CALL-E, restricted to the allowlisted numbers. |
+
 ## Project structure
 
 ```text
 src/
-  App.tsx             Three-screen intent -> plan -> results UI
+  App.tsx              Three-screen intent -> plan -> results UI
+  i18n/strings.ts      English source strings (everything else is translated live)
   domain/
     base.ts            Shared target/mission schemas, safety preamble, guards
-    template.ts         MissionTemplate<TInput, TData> contract
-    missions/           lostAndFound, appointmentScout, reachability, generic
-    registry.ts          kind -> template lookup
-    interpret.ts         free-text -> plan (LLM, keyword-classifier fallback)
-    translate.ts          locale-boundary translation (LLM, marker-stub fallback)
-    llm.ts               provider-agnostic LLM layer (Anthropic + OpenAI) + model constants
+    template.ts        MissionTemplate<TInput, TData> contract
+    missions/          lostAndFound, appointmentScout, reachability, generic
+    registry.ts        kind -> template lookup
+    interpret.ts       free-text -> plan (LLM, keyword fallback)
+    translate.ts       locale-boundary translation (LLM, stub fallback)
+    llm.ts             provider-agnostic LLM layer (Anthropic + OpenAI)
   styles.css
 server/
-  index.ts             Fastify API: intent/interpret, missions/run, health; real CALL-E path
+  index.ts             Fastify API: intent, missions/run, localize, health; CALL-E path
 docs/
-  design.md            Full design spec (copied from foundline)
+  mission-templates-spec.md   Design + mission-template spec
 ```
 
 ## License

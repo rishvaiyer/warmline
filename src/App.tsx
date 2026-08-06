@@ -77,6 +77,24 @@ function loadingMessageForLocale(locale: string): string {
   return LOADING_MESSAGE_BY_LANG[lang] ?? "Loading…";
 }
 
+// Flatten the on-screen results into a short spoken script for the voice
+// callback: venue, outcome, and any answer values (no raw field keys, which
+// read badly out loud).
+function buildCallbackSummary(results: CallResult[]): string {
+  return results
+    .map((result) => {
+      const answers = Object.values(result.data)
+        .map((value) => (Array.isArray(value) ? value.join(", ") : String(value ?? "")))
+        .filter((text) => text.trim().length > 0);
+      const parts = [`${result.venueName}: ${result.outcome}`, ...answers];
+      if (result.followUpRequired && result.followUpInstructions.trim()) {
+        parts.push(result.followUpInstructions.trim());
+      }
+      return parts.join(". ");
+    })
+    .join(" ");
+}
+
 type CallResult = {
   targetId: string;
   venueName: string;
@@ -172,6 +190,20 @@ function ShieldIcon() {
   );
 }
 
+function GlobeIcon() {
+  return (
+    <svg className="lang-switcher-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M3 12h18M12 3c2.6 2.6 2.6 15.4 0 18M12 3c-2.6 2.6-2.6 15.4 0 18"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 function CheckIcon() {
   return (
     <svg className="cue-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -246,6 +278,8 @@ export default function App() {
   // Screen 3 state
   const [runResult, setRunResult] = useState<RunResponse | null>(null);
   const [showEnglishResults, setShowEnglishResults] = useState(false);
+  const [callbackPhone, setCallbackPhone] = useState("");
+  const [callbackStatus, setCallbackStatus] = useState<"idle" | "calling" | "done" | "error">("idle");
 
   function updateTarget(id: string, patch: Partial<Target>) {
     setTargets((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
@@ -344,6 +378,24 @@ export default function App() {
       await applyDetectedLocale(newLocale);
     } finally {
       setLocalizing(false);
+    }
+  }
+
+  // Ask Warmline to call the person back and read the results aloud in their
+  // language. The spoken summary is built from the results already on screen.
+  async function handleRequestCallback() {
+    const summary = buildCallbackSummary(runResult?.results ?? []);
+    if (callbackPhone.trim().length < 8 || !summary || callbackStatus === "calling") return;
+    setCallbackStatus("calling");
+    try {
+      const response = await fetch("/api/missions/callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneE164: callbackPhone.trim(), locale: userLocale, summary })
+      });
+      setCallbackStatus(response.ok ? "done" : "error");
+    } catch {
+      setCallbackStatus("error");
     }
   }
 
@@ -491,11 +543,21 @@ export default function App() {
             <WordmarkIcon />
             <span className="wordmark-text">Warmline</span>
           </div>
-          {!userLocale.toLowerCase().startsWith("en") && (
-            <button type="button" className="english-reset-button" onClick={resetToEnglish}>
-              🌐 English
-            </button>
-          )}
+          <div className="lang-switcher" title={s.yourLanguageLabel}>
+            <GlobeIcon />
+            <select
+              className="lang-switcher-select"
+              value={userLocale}
+              onChange={(e) => handleUserLocaleChange(e.target.value)}
+              aria-label={s.yourLanguageLabel}
+            >
+              {LOCALE_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </header>
 
         <section className="hero">
@@ -769,6 +831,43 @@ export default function App() {
                 );
               })}
             </ul>
+
+            <div className="callback-card">
+              <p className="callback-title">{s.callbackTitle}</p>
+              <p className="callback-subtitle">{s.callbackSubtitle}</p>
+              <div className="callback-row">
+                <input
+                  className="callback-input"
+                  type="tel"
+                  inputMode="tel"
+                  value={callbackPhone}
+                  onChange={(e) => {
+                    setCallbackPhone(e.target.value);
+                    if (callbackStatus !== "idle") setCallbackStatus("idle");
+                  }}
+                  placeholder="+12025550123"
+                  aria-label={s.callbackPhoneLabel}
+                />
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={handleRequestCallback}
+                  disabled={callbackStatus === "calling" || callbackPhone.trim().length < 8}
+                >
+                  {callbackStatus === "calling" ? s.callbackCalling : s.callbackButton}
+                </button>
+              </div>
+              {callbackStatus === "done" && (
+                <p className="callback-status is-ok" role="status">
+                  {s.callbackDone}
+                </p>
+              )}
+              {callbackStatus === "error" && (
+                <p className="callback-status is-err" role="alert">
+                  {s.callbackError}
+                </p>
+              )}
+            </div>
 
             <div className="reassurance-note">
               <PhoneIcon />
