@@ -6,7 +6,6 @@ import { resolve } from "node:path";
 import {
   baseMissionSchema,
   makeIdempotencyKey,
-  parseAllowedPhoneNumbers,
   type CallResult
 } from "../src/domain/base.js";
 import { getTemplate } from "../src/domain/registry.js";
@@ -16,7 +15,6 @@ import { llmComplete, hasLLMKey } from "../src/domain/llm.js";
 
 const app = Fastify({ logger: true, bodyLimit: 64 * 1024 });
 const port = Number(process.env.PORT || 8787);
-const allowedPhoneNumbers = parseAllowedPhoneNumbers(process.env.CALLE_ALLOWED_NUMBERS);
 const calleRegion = process.env.CALLE_REGION || "US";
 // Canonical English tag used as the "friend/family can read it too" copy of
 // every result, and as the source language of the mock engine's text.
@@ -69,13 +67,12 @@ function extractJsonBlock(text: string): string {
   return fenced ? fenced[1].trim() : trimmed;
 }
 
-// Real calls require the explicit opt-in flag, a CALL-E API key, AND at least
-// one server-side allowlisted number. If any of those is missing, the server
-// stays in mock mode -- that is the default and the safe fallback.
+// Real calls require the explicit opt-in flag AND a CALL-E API key. Without
+// both, the server stays in mock mode -- the default, safe fallback. Every
+// real call still goes through the user's in-app approval and a spoken AI
+// disclosure before it dials.
 const realCallsEnabled =
-  process.env.ALLOW_REAL_CALLS === "true" &&
-  Boolean(process.env.CALLE_API_KEY) &&
-  allowedPhoneNumbers.size > 0;
+  process.env.ALLOW_REAL_CALLS === "true" && Boolean(process.env.CALLE_API_KEY);
 
 const inFlightKeys = new Set<string>();
 
@@ -91,7 +88,7 @@ app.get("/api/health", async () => ({
   ok: true,
   mode: realCallsEnabled ? "real" : "mock",
   realCallsConfigured: realCallsEnabled,
-  realCallProtection: realCallsEnabled ? "server_allowlist" : "disabled"
+  realCallProtection: realCallsEnabled ? "approval_and_disclosure" : "disabled"
 }));
 
 app.post("/api/intent/interpret", async (request, reply) => {
@@ -280,15 +277,6 @@ app.post("/api/missions/run", async (request, reply) => {
     };
   }
 
-  const disallowedTargets = mission.targets.filter(
-    (target) => !allowedPhoneNumbers.has(target.phoneE164)
-  );
-  if (disallowedTargets.length > 0) {
-    return reply.code(403).send({
-      error: "Real call blocked. Every recipient must be included in the server-side CALLE_ALLOWED_NUMBERS list."
-    });
-  }
-
   const callLocale = mission.callLocale ?? mission.userLocale;
   // Boundary IN: translate free-text fields userLocale -> callLocale (no-op when equal).
   const localizedMission = await translateMissionFields(mission, mission.userLocale, callLocale);
@@ -363,8 +351,8 @@ app.post("/api/missions/run", async (request, reply) => {
 
 // Voice callback: after the task is done, Warmline can call the PERSON back and
 // read them the outcome out loud, in their own language -- for anyone who would
-// rather hear it than read it. Same allowlist + real-calls gating as any other
-// call; mock mode just acknowledges without dialing.
+// rather hear it than read it. Same real-calls gating as any other call; mock
+// mode just acknowledges without dialing.
 app.post("/api/missions/callback", async (request, reply) => {
   const body = (request.body ?? {}) as { phoneE164?: string; locale?: string; summary?: string };
   const phone = (body.phoneE164 ?? "").trim();
@@ -380,11 +368,6 @@ app.post("/api/missions/callback", async (request, reply) => {
 
   if (!realCallsEnabled) {
     return { mode: "mock", status: "queued" };
-  }
-  if (!allowedPhoneNumbers.has(phone)) {
-    return reply.code(403).send({
-      error: "Callback blocked. Your number must be on the server-side CALLE_ALLOWED_NUMBERS list."
-    });
   }
 
   const idempotencyKey = makeIdempotencyKey("callback", phone, String(summary.length));
