@@ -269,6 +269,10 @@ export default function App() {
   // Language detected from what they've typed so far, used to name the button
   // ("Show this page in Español") before they click it. "" = not yet known.
   const [detectedLocale, setDetectedLocale] = useState("");
+  // True once the person has explicitly picked a language (dropdown, switcher,
+  // or the detect button). When false, interpreting follows the language they
+  // wrote their request in, so the plan always matches the screen.
+  const [localeExplicitlyChosen, setLocaleExplicitlyChosen] = useState(false);
 
   // Screen 2 state
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -367,6 +371,7 @@ export default function App() {
   // away, even with the intent box still empty -- so someone who can't read
   // the English form can switch first, then fill it in. English reverts.
   async function handleUserLocaleChange(newLocale: string) {
+    setLocaleExplicitlyChosen(true);
     if (newLocale.toLowerCase().startsWith("en")) {
       resetToEnglish();
       return;
@@ -406,6 +411,7 @@ export default function App() {
   async function handleDetectAndLocalize() {
     const text = intentText.trim();
     if (text.length < 3 || localizing) return;
+    setLocaleExplicitlyChosen(true);
     setLocalizing(true);
     try {
       // Reuse the language the debounced detector already found; only ask the
@@ -445,10 +451,40 @@ export default function App() {
 
     setInterpreting(true);
     try {
+      // Settle the review-screen language BEFORE generating the plan, so the
+      // plan text comes back in that same language. If the person explicitly
+      // picked a language, honor it. Otherwise follow the language they wrote
+      // their request in (detecting it now if we have not already), and flip
+      // the page to it first.
+      let planLocale = userLocale;
+      if (!localeExplicitlyChosen) {
+        let detected = detectedLocale;
+        if (!detected) {
+          try {
+            const detectResponse = await fetch("/api/intent/detect", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ text: intentText.trim() })
+            });
+            if (detectResponse.ok) {
+              detected = (await detectResponse.json()).detectedLocale || "";
+            }
+          } catch {
+            // Fall through and keep the current language.
+          }
+        }
+        if (detected && !detected.toLowerCase().startsWith("en")) {
+          await applyDetectedLocale(detected);
+          planLocale = detected;
+        } else {
+          planLocale = "en-US";
+        }
+      }
+
       const response = await fetch("/api/intent/interpret", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: intentText, userLocale })
+        body: JSON.stringify({ text: intentText, userLocale: planLocale })
       });
       const body = await response.json();
       if (!response.ok) {
@@ -457,11 +493,6 @@ export default function App() {
       }
       const receivedPlan = body.plan as Plan;
       setPlan(receivedPlan);
-
-      // Catch-all: if on-blur detection didn't already flip the language
-      // (short text, edited since, or blur never fired), do it now.
-      await applyDetectedLocale(receivedPlan.detectedLocale || "en");
-
       setScreen(2);
     } catch {
       setInterpretError(s.errorNetwork);
