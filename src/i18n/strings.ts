@@ -7,8 +7,10 @@
 // the `s.<key>` lookup instead of an inline literal.
 
 export type UIStrings = {
-  // Header
-  headline: string;
+  // Header / hero
+  eyebrow: string;
+  headlineLine1: string;
+  headlineLine2: string;
   subhead: string;
 
   // Progress steps
@@ -64,8 +66,11 @@ export type UIStrings = {
 };
 
 export const EN: UIStrings = {
-  headline: "We'll make the call, so you don't have to.",
-  subhead: "Say what you need, in any language. We'll call the business and read the answer back to you.",
+  eyebrow: "A kinder way to make the call",
+  headlineLine1: "You say what you need.",
+  headlineLine2: "We make the call.",
+  subhead:
+    "Tell us what you need, in any language. Warmline calls the business, gets a real answer, and reads it back to you. You approve every call before it happens. Built for anyone who finds phone calls hard.",
 
   stepIntake: "What you need",
   stepReview: "Review",

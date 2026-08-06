@@ -321,14 +321,22 @@ export default function App() {
   return (
     <div className="app-shell">
       <div className="app">
-        <header className="app-header">
+        <header className="site-header">
           <div className="wordmark">
             <WordmarkIcon />
             <span className="wordmark-text">Warmline</span>
           </div>
-          <h1>{s.headline}</h1>
-          <p>{s.subhead}</p>
         </header>
+
+        <section className="hero">
+          <div className="eyebrow">{s.eyebrow}</div>
+          <h1>
+            {s.headlineLine1}
+            <br />
+            <em>{s.headlineLine2}</em>
+          </h1>
+          <p>{s.subhead}</p>
+        </section>
 
         <ol className="progress-steps" aria-label={s.progressAriaLabel}>
           {progressSteps.map((label, i) => {
