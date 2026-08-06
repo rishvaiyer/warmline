@@ -353,12 +353,8 @@ body {
 
 .field-row {
   display: flex;
+  flex-direction: column;
   gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.field-row .field {
-  min-width: 180px;
 }
 
 /* ---------- Targets ---------- */
