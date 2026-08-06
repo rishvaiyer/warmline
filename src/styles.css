@@ -2,19 +2,19 @@
   color-scheme: light;
 
   /* Warm light palette */
-  --bg: #fbf7f1;
-  --bg-wash-a: #fdf1e7;
-  --bg-wash-b: #fbf7f1;
-  --card-bg: #fffdfa;
-  --ink: #2a2521;
-  --muted: #857a6d;
-  --border: #ece2d3;
-  --border-soft: #f1e8db;
+  --bg: #fdfcfb;
+  --bg-wash-a: #fef6f2;
+  --bg-wash-b: #fdfcfb;
+  --card-bg: #ffffff;
+  --ink: #2c2b30;
+  --muted: #8a8790;
+  --border: #eceae6;
+  --border-soft: #f4f2ef;
 
-  --accent: #e07856;
-  --accent-hover: #cb6344;
-  --accent-soft: #fbe8de;
-  --accent-ring: rgba(224, 120, 86, 0.35);
+  --accent: #f07a5a;
+  --accent-hover: #e2603f;
+  --accent-soft: #fdeae4;
+  --accent-ring: rgba(240, 122, 90, 0.35);
 
   --success: #5c8a6a;
   --success-soft: #e7f0e6;
@@ -22,10 +22,10 @@
   --error: #b23b2e;
   --error-soft: #f8e5e0;
 
-  --shadow-sm: 0 1px 2px rgba(90, 62, 40, 0.06);
-  --shadow-card: 0 12px 32px -12px rgba(120, 76, 40, 0.16), 0 2px 8px rgba(120, 76, 40, 0.06);
-  --shadow-button: 0 8px 20px -6px rgba(224, 120, 86, 0.45);
-  --shadow-button-hover: 0 12px 26px -6px rgba(224, 120, 86, 0.55);
+  --shadow-sm: 0 1px 2px rgba(45, 45, 60, 0.06);
+  --shadow-card: 0 12px 32px -12px rgba(45, 45, 60, 0.16), 0 2px 8px rgba(45, 45, 60, 0.06);
+  --shadow-button: 0 8px 20px -6px rgba(240, 122, 90, 0.45);
+  --shadow-button-hover: 0 12px 26px -6px rgba(240, 122, 90, 0.55);
 
   --radius-card: 18px;
   --radius-field: 12px;
@@ -283,7 +283,7 @@ body {
 
 .field textarea::placeholder,
 .field input::placeholder {
-  color: #b3a89a;
+  color: #b9b6bf;
 }
 
 .field textarea:focus-visible,
@@ -308,7 +308,7 @@ body {
 
 .field select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6l4 4 4-4' stroke='%23857a6d' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6l4 4 4-4' stroke='%238a8790' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.85rem center;
   padding-right: 2.3rem;
@@ -337,7 +337,7 @@ body {
   flex-direction: column;
   gap: 0.6rem;
   padding: 0.9rem 0.9rem 1rem;
-  background: #fbf8f3;
+  background: #fbfaf9;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-field);
 }
@@ -543,7 +543,7 @@ body {
 .plan-disclosure {
   margin: 0;
   padding: 0.9rem 1.05rem;
-  background: #fbf8f3;
+  background: #fbfaf9;
   border-radius: var(--radius-field);
   color: var(--ink);
   font-style: italic;
@@ -577,7 +577,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-  background: #fffdfa;
+  background: #ffffff;
 }
 
 .result-item-best {
@@ -714,19 +714,19 @@ body {
   :root {
     color-scheme: dark;
 
-    --bg: #201b17;
-    --bg-wash-a: #2a2119;
-    --bg-wash-b: #1c1815;
-    --card-bg: #2a2420;
-    --ink: #f2e9dd;
-    --muted: #b3a596;
-    --border: #423a31;
-    --border-soft: #38312a;
+    --bg: #1b1b1f;
+    --bg-wash-a: #232228;
+    --bg-wash-b: #191920;
+    --card-bg: #26262c;
+    --ink: #f0eef2;
+    --muted: #a9a6b0;
+    --border: #3a3a42;
+    --border-soft: #303038;
 
-    --accent: #e68a66;
-    --accent-hover: #f0a081;
-    --accent-soft: #3c2c24;
-    --accent-ring: rgba(230, 138, 102, 0.35);
+    --accent: #f0866a;
+    --accent-hover: #f5a98e;
+    --accent-soft: #33262a;
+    --accent-ring: rgba(240, 134, 106, 0.35);
 
     --success: #7fae8c;
     --success-soft: #253227;
@@ -735,14 +735,14 @@ body {
     --error-soft: #3a2621;
 
     --shadow-card: 0 12px 32px -12px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3);
-    --shadow-button: 0 8px 20px -6px rgba(230, 138, 102, 0.3);
-    --shadow-button-hover: 0 12px 26px -6px rgba(230, 138, 102, 0.4);
+    --shadow-button: 0 8px 20px -6px rgba(240, 134, 106, 0.3);
+    --shadow-button-hover: 0 12px 26px -6px rgba(240, 134, 106, 0.4);
   }
 
   .field textarea,
   .field input,
   .field select {
-    background: #241f1b;
+    background: #201f26;
     border-color: var(--border);
     color: var(--ink);
   }
@@ -758,7 +758,7 @@ body {
 
   .target-row,
   .plan-disclosure {
-    background: #241f1b;
+    background: #201f26;
   }
 
   .primary-button {
@@ -771,6 +771,6 @@ body {
   }
 
   .result-item {
-    background: #241f1b;
+    background: #201f26;
   }
 }

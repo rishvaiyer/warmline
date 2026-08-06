@@ -43,14 +43,40 @@ type RunResponse = {
   results: CallResult[];
 };
 
+// The UI localizes via LLM translation, so any language works. These are the
+// picker options; native names first so people can find their own language.
 const LOCALE_OPTIONS = [
-  { value: "en-US", label: "English (US)" },
-  { value: "es-ES", label: "Español" },
-  { value: "fr-FR", label: "Français" },
-  { value: "pt-BR", label: "Português (Brasil)" },
-  { value: "zh-CN", label: "中文" },
-  { value: "ar-SA", label: "العربية" },
-  { value: "hi-IN", label: "हिन्दी" }
+  { value: "en-US", label: "English" },
+  { value: "es-ES", label: "Español (Spanish)" },
+  { value: "fr-FR", label: "Français (French)" },
+  { value: "de-DE", label: "Deutsch (German)" },
+  { value: "it-IT", label: "Italiano (Italian)" },
+  { value: "pt-BR", label: "Português (Portuguese)" },
+  { value: "nl-NL", label: "Nederlands (Dutch)" },
+  { value: "pl-PL", label: "Polski (Polish)" },
+  { value: "ru-RU", label: "Русский (Russian)" },
+  { value: "uk-UA", label: "Українська (Ukrainian)" },
+  { value: "el-GR", label: "Ελληνικά (Greek)" },
+  { value: "tr-TR", label: "Türkçe (Turkish)" },
+  { value: "hi-IN", label: "हिन्दी (Hindi)" },
+  { value: "gu-IN", label: "ગુજરાતી (Gujarati)" },
+  { value: "pa-IN", label: "ਪੰਜਾਬੀ (Punjabi)" },
+  { value: "bn-IN", label: "বাংলা (Bengali)" },
+  { value: "mr-IN", label: "मराठी (Marathi)" },
+  { value: "ta-IN", label: "தமிழ் (Tamil)" },
+  { value: "te-IN", label: "తెలుగు (Telugu)" },
+  { value: "ur-PK", label: "اردو (Urdu)" },
+  { value: "ar-SA", label: "العربية (Arabic)" },
+  { value: "fa-IR", label: "فارسی (Persian)" },
+  { value: "he-IL", label: "עברית (Hebrew)" },
+  { value: "zh-CN", label: "中文 (Chinese, Simplified)" },
+  { value: "ja-JP", label: "日本語 (Japanese)" },
+  { value: "ko-KR", label: "한국어 (Korean)" },
+  { value: "vi-VN", label: "Tiếng Việt (Vietnamese)" },
+  { value: "th-TH", label: "ไทย (Thai)" },
+  { value: "tl-PH", label: "Tagalog (Filipino)" },
+  { value: "id-ID", label: "Bahasa Indonesia (Indonesian)" },
+  { value: "sw-KE", label: "Kiswahili (Swahili)" }
 ];
 
 let targetIdCounter = 0;
