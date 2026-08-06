@@ -329,6 +329,24 @@ export default function App() {
     }
   }
 
+  // Picking a language from the dropdown flips the whole page into it right
+  // away, even with the intent box still empty -- so someone who can't read
+  // the English form can switch first, then fill it in. English reverts.
+  async function handleUserLocaleChange(newLocale: string) {
+    if (newLocale.toLowerCase().startsWith("en")) {
+      resetToEnglish();
+      return;
+    }
+    if (newLocale === userLocale) return;
+    setDetectedLocale(newLocale);
+    setLocalizing(true);
+    try {
+      await applyDetectedLocale(newLocale);
+    } finally {
+      setLocalizing(false);
+    }
+  }
+
   // Explicit "show this page in my language" action. The person types their
   // request, taps the button, and we detect the language of what they wrote
   // and flip the whole UI into it -- with a visible loading label, so the
@@ -553,7 +571,7 @@ export default function App() {
             <div className="field-row">
               <label className="field">
                 <span className="field-label">{s.yourLanguageLabel}</span>
-                <select value={userLocale} onChange={(e) => setUserLocale(e.target.value)}>
+                <select value={userLocale} onChange={(e) => handleUserLocaleChange(e.target.value)}>
                   {LOCALE_OPTIONS.map((opt) => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
