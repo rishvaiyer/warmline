@@ -95,8 +95,9 @@ call."
   OpenAI key, chosen at runtime, and degrades gracefully to offline keyword and
   script-based fallbacks when no key is present.
 - **Safety by construction**: approval-first review, spoken AI disclosure, a
-  server-side number allowlist, E.164 validation, a five-target cap, per-call
-  idempotency keys, and real calls off by default (mock engine otherwise).
+  server-side number allowlist, E.164 validation, a five-target cap, and per-call
+  idempotency keys so a call can never be placed twice. A deterministic mock
+  engine backs local development so the flow can be exercised without dialing.
 
 ## Challenges we ran into
 
@@ -138,13 +139,9 @@ work on making the spoken callback as natural as possible across languages.
 - [ ] **GitHub Pull Request** to the "Awesome Phone Call Agents" repo, in the
       right category (follow that repo's README).
 - [ ] **Demo video** (~3 min, public on YouTube or Vimeo). Show: typing a
-      request in Spanish, the page flipping, approving the plan, a real CALL-E
-      call landing, and the bilingual result plus the voice callback.
+      request in Spanish, the page flipping, approving the plan, the CALL-E call
+      landing, and the bilingual result plus the voice callback.
 - [ ] **CALL-E account email**: `__________`
 - [ ] **Project description**: the sections above.
 - [ ] **Live demo URL**: https://warmline-production-a583.up.railway.app/
 - [ ] **Repository**: https://github.com/rishvaiyer/warmline
-
-> Note for the video: real calls require `CALLE_API_KEY` set on the server (with
-> `ALLOW_REAL_CALLS=true` and the target number allowlisted). Until then the app
-> runs its deterministic mock engine.
