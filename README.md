@@ -18,8 +18,12 @@ something that actually reaches a human on the other end.
 
 - **`task`** — the per-mission call goal Warmline generated from the user's intent (e.g. "ask for the
   earliest appointment; do not book anything"), always prefixed with a spoken AI-disclosure line.
-- **`recipient`** — the business phone in E.164, plus a **`locale`** (the `callLocale`) so the call can
-  happen in a different language than the person's own UI language.
+- **`recipient`** — the business phone in E.164, plus a **`locale`** (the `callLocale`) and a
+  **`region`** so the call can happen in a different language than the person's own UI language.
+  CALL-E ties the language its agent *speaks* to the recipient region (Spanish under `MX`, Hindi under
+  `IN`, Arabic under `AE`, and so on), so Warmline maps the chosen `callLocale` to a region CALL-E
+  supports that language in (`regionForCallLocale` in `server/index.ts`), falling back to
+  `CALLE_REGION` for anything unmapped.
 - **`resultSchema`** — the mission's structured-output schema, so CALL-E returns typed fields
   (availability, price, outcome, evidence) rather than a blob of text.
 

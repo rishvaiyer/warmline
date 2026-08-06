@@ -19,6 +19,43 @@ const port = Number(process.env.PORT || 8787);
 const allowedPhoneNumbers = parseAllowedPhoneNumbers(process.env.CALLE_ALLOWED_NUMBERS);
 const calleRegion = process.env.CALLE_REGION || "US";
 
+// CALL-E ties the language its voice agent SPEAKS to the recipient region:
+// Spanish lives under MX, Hindi under IN, Arabic under AE, and so on (see
+// github.com/CALLE-AI/call-e-integrations). So to place a call in the
+// person's language we can't just send a `locale` -- we also have to pick a
+// `region` that CALL-E supports that language in. This maps a call language
+// (bare code or BCP-47 like "es"/"hi-IN") to such a region. Anything we don't
+// have a documented mapping for falls back to CALLE_REGION (default US/English)
+// rather than guessing a region CALL-E might reject.
+const CALLE_SUPPORTED_REGIONS = new Set(["US", "MX", "IN", "AE", "VN", "JP", "SG"]);
+const LANGUAGE_TO_CALLE_REGION: Record<string, string> = {
+  en: "US", // English
+  es: "MX", // Spanish
+  hi: "IN", // Hindi
+  gu: "IN", // Gujarati
+  pa: "IN", // Punjabi
+  bn: "IN", // Bengali
+  ta: "IN", // Tamil
+  te: "IN", // Telugu
+  ur: "AE", // Urdu
+  ar: "AE", // Arabic
+  fa: "AE", // Persian
+  vi: "VN", // Vietnamese
+  ja: "JP", // Japanese
+  zh: "SG" // Chinese (Mandarin, via Singapore)
+};
+
+// Pick the CALL-E region for a given call language. If the locale already
+// carries a region CALL-E supports (e.g. "es-MX"), honor it; otherwise map by
+// language; otherwise fall back to the configured default.
+function regionForCallLocale(callLocale: string | undefined): string {
+  if (!callLocale) return calleRegion;
+  const [langPart, regionPart] = callLocale.split("-");
+  const explicitRegion = regionPart?.toUpperCase();
+  if (explicitRegion && CALLE_SUPPORTED_REGIONS.has(explicitRegion)) return explicitRegion;
+  return LANGUAGE_TO_CALLE_REGION[langPart?.toLowerCase() ?? ""] ?? calleRegion;
+}
+
 // In-memory cache of translated UI-string bundles, keyed by target locale.
 // Never persisted; a server restart just re-translates on next use.
 const uiLocalizeCache = new Map<string, Record<string, string>>();
@@ -251,7 +288,11 @@ app.post("/api/missions/run", async (request, reply) => {
       const providerResult = await client.calls.createAndWait(
         {
           task: template.buildCallTask(localizedMission as never, target),
-          recipient: { phone: target.phoneE164, region: calleRegion, locale: callLocale },
+          recipient: {
+            phone: target.phoneE164,
+            region: regionForCallLocale(callLocale),
+            locale: callLocale
+          },
           resultSchema: template.resultSchema,
           metadata: {
             workflow: mission.kind,
