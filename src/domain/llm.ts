@@ -28,7 +28,12 @@ export function anthropicKey(): string | undefined {
 // the Anthropic variable), returns that instead. This makes the app work no
 // matter which env var name the user used for an OpenAI key.
 export function openaiKey(): string | undefined {
-  if (process.env.OPENAI_API_KEY) return process.env.OPENAI_API_KEY;
+  // Accept the correct name plus a few common misspellings, so a key set under
+  // any of them just works.
+  for (const name of ["OPENAI_API_KEY", "OPEN_API_KEY", "OPENAI_KEY", "OPEN_AI_API_KEY"]) {
+    const value = process.env[name];
+    if (value) return value;
+  }
   const anthropicVar = process.env.ANTHROPIC_API_KEY;
   if (anthropicVar && !anthropicVar.startsWith("sk-ant")) return anthropicVar;
   return undefined;
