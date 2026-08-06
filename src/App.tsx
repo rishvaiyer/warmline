@@ -18,7 +18,7 @@ type Plan = {
 
 // Locales whose script reads right-to-left; drives document.dir when the UI
 // auto-localizes to whatever language the person typed their request in.
-const RTL_LOCALE_PREFIXES = new Set(["ar", "he", "fa", "ur"]);
+const RTL_LOCALE_PREFIXES = new Set(["ar", "he", "fa", "ur", "ps"]);
 
 function isRtlLocale(locale: string): boolean {
   return RTL_LOCALE_PREFIXES.has(locale.split("-")[0].toLowerCase());
@@ -76,7 +76,40 @@ const LOCALE_OPTIONS = [
   { value: "th-TH", label: "ไทย (Thai)" },
   { value: "tl-PH", label: "Tagalog (Filipino)" },
   { value: "id-ID", label: "Bahasa Indonesia (Indonesian)" },
-  { value: "sw-KE", label: "Kiswahili (Swahili)" }
+  { value: "ms-MY", label: "Bahasa Melayu (Malay)" },
+  { value: "sw-KE", label: "Kiswahili (Swahili)" },
+  { value: "am-ET", label: "አማርኛ (Amharic)" },
+  { value: "yo-NG", label: "Yorùbá (Yoruba)" },
+  { value: "ha-NG", label: "Hausa" },
+  { value: "so-SO", label: "Soomaali (Somali)" },
+  { value: "zu-ZA", label: "isiZulu (Zulu)" },
+  { value: "ro-RO", label: "Română (Romanian)" },
+  { value: "cs-CZ", label: "Čeština (Czech)" },
+  { value: "sk-SK", label: "Slovenčina (Slovak)" },
+  { value: "hu-HU", label: "Magyar (Hungarian)" },
+  { value: "bg-BG", label: "Български (Bulgarian)" },
+  { value: "sr-RS", label: "Српски (Serbian)" },
+  { value: "hr-HR", label: "Hrvatski (Croatian)" },
+  { value: "ca-ES", label: "Català (Catalan)" },
+  { value: "sv-SE", label: "Svenska (Swedish)" },
+  { value: "nb-NO", label: "Norsk (Norwegian)" },
+  { value: "da-DK", label: "Dansk (Danish)" },
+  { value: "fi-FI", label: "Suomi (Finnish)" },
+  { value: "ml-IN", label: "മലയാളം (Malayalam)" },
+  { value: "kn-IN", label: "ಕನ್ನಡ (Kannada)" },
+  { value: "ne-NP", label: "नेपाली (Nepali)" },
+  { value: "si-LK", label: "සිංහල (Sinhala)" },
+  { value: "km-KH", label: "ខ្មែរ (Khmer)" },
+  { value: "my-MM", label: "မြန်မာ (Burmese)" },
+  { value: "lo-LA", label: "ລາວ (Lao)" },
+  { value: "ka-GE", label: "ქართული (Georgian)" },
+  { value: "hy-AM", label: "Հայերեն (Armenian)" },
+  { value: "az-AZ", label: "Azərbaycanca (Azerbaijani)" },
+  { value: "kk-KZ", label: "Қазақша (Kazakh)" },
+  { value: "uz-UZ", label: "Oʻzbekcha (Uzbek)" },
+  { value: "mn-MN", label: "Монгол (Mongolian)" },
+  { value: "ps-AF", label: "پښتو (Pashto)" },
+  { value: "ht-HT", label: "Kreyòl Ayisyen (Haitian Creole)" }
 ];
 
 let targetIdCounter = 0;

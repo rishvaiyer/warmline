@@ -6,6 +6,29 @@ reports the answer back in your own language.
 
 Built for non-native speakers and people with phone anxiety: you never have to make the call yourself.
 
+## Built on CALL-E
+
+Warmline places its real phone calls through [**CALL-E**](https://call-e.devpost.com/) ("Your Code Is
+Calling"), an agentic calling platform: you hand it a task and a phone number, and its voice agent makes
+the call and hands back a structured result. CALL-E is what turns Warmline from a nice intent form into
+something that actually reaches a human on the other end.
+
+**How the integration works** (`server/index.ts`): for each approved target, Warmline calls
+`CalleClient.calls.createAndWait(...)` from the `@call-e/calle` SDK, passing:
+
+- **`task`** — the per-mission call goal Warmline generated from the user's intent (e.g. "ask for the
+  earliest appointment; do not book anything"), always prefixed with a spoken AI-disclosure line.
+- **`recipient`** — the business phone in E.164, plus a **`locale`** (the `callLocale`) so the call can
+  happen in a different language than the person's own UI language.
+- **`resultSchema`** — the mission's structured-output schema, so CALL-E returns typed fields
+  (availability, price, outcome, evidence) rather than a blob of text.
+
+Warmline wraps every CALL-E call in its own trust layer so "call anyone" stays safe: an **approval-first
+plan review** the user must confirm, a spoken **AI disclosure**, a **server-side allowlist**
+(`CALLE_ALLOWED_NUMBERS`), **E.164 validation**, a **max of 5 targets**, per-call **idempotency keys**,
+and a hard rule that the agent never books, pays, or commits anything on the user's behalf. Real calls
+are **off by default** and only run when `ALLOW_REAL_CALLS=true`, `CALLE_API_KEY` is set, and the number
+is allowlisted (see [Environment](#environment)); otherwise Warmline uses a deterministic mock engine.
 
 ## Current state
 
