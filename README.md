@@ -6,9 +6,6 @@ reports the answer back in your own language.
 
 Built for non-native speakers and people with phone anxiety: you never have to make the call yourself.
 
-See `docs/design.md` for the full design spec (intent-first flow, MissionTemplate model, the two-knob
-language model, and the safety/permitted-use model). Warmline generalizes
-[FoundLine](../foundline)'s lost-item calling engine into an intent-first, multi-template concierge.
 
 ## Current state
 
