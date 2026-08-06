@@ -38,6 +38,45 @@ function languageEndonym(locale: string): string {
   }
 }
 
+// "Loading…" written IN each supported language, shown on the overlay while the
+// page is being switched -- so the wait itself already speaks their language.
+const LOADING_MESSAGE_BY_LANG: Record<string, string> = {
+  es: "Cargando…",
+  zh: "加载中…",
+  tl: "Naglo-load…",
+  vi: "Đang tải…",
+  ar: "جارٍ التحميل…",
+  fr: "Chargement…",
+  ko: "로딩 중…",
+  ru: "Загрузка…",
+  ht: "Ap chaje…",
+  de: "Wird geladen…",
+  hi: "लोड हो रहा है…",
+  pt: "Carregando…",
+  it: "Caricamento…",
+  pl: "Ładowanie…",
+  ur: "لوڈ ہو رہا ہے…",
+  ja: "読み込み中…",
+  fa: "در حال بارگذاری…",
+  gu: "લોડ થઈ રહ્યું છે…",
+  te: "లోడ్ అవుతోంది…",
+  bn: "লোড হচ্ছে…",
+  ta: "ஏற்றுகிறது…",
+  pa: "ਲੋਡ ਹੋ ਰਿਹਾ ਹੈ…",
+  el: "Φόρτωση…",
+  km: "កំពុងផ្ទុក…",
+  th: "กำลังโหลด…",
+  hy: "Բեռնվում է…",
+  am: "በመጫን ላይ…",
+  so: "Waa la soo rarayaa…",
+  uk: "Завантаження…"
+};
+
+function loadingMessageForLocale(locale: string): string {
+  const lang = locale.split("-")[0].toLowerCase();
+  return LOADING_MESSAGE_BY_LANG[lang] ?? "Loading…";
+}
+
 type CallResult = {
   targetId: string;
   venueName: string;
@@ -249,6 +288,17 @@ export default function App() {
     return () => clearTimeout(handle);
   }, [intentText]);
 
+  // One-tap return to English, for the person (or an English-speaking helper)
+  // who flipped the UI and wants the original language back. No network call --
+  // the English strings ship with the app.
+  function resetToEnglish() {
+    setS(EN);
+    setUserLocale("en-US");
+    setDetectedLocale("");
+    document.documentElement.lang = "en-US";
+    document.documentElement.dir = "ltr";
+  }
+
   // Flip the whole UI into `detectedLocale` (labels, buttons, disclosure,
   // results) so a non-native speaker can finish the form in their own language.
   // English, or a repeat of what's already on screen, is a no-op; any failure
@@ -406,12 +456,28 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      {localizing && (
+        <div className="locale-loading-overlay" role="status" aria-live="polite">
+          <div className="locale-loading-card">
+            <span className="locale-spinner" aria-hidden="true" />
+            <span className="locale-loading-text">{loadingMessageForLocale(detectedLocale)}</span>
+            {languageEndonym(detectedLocale) && (
+              <span className="locale-loading-sub">{languageEndonym(detectedLocale)}</span>
+            )}
+          </div>
+        </div>
+      )}
       <div className="app">
         <header className="site-header">
           <div className="wordmark">
             <WordmarkIcon />
             <span className="wordmark-text">Warmline</span>
           </div>
+          {!userLocale.toLowerCase().startsWith("en") && (
+            <button type="button" className="english-reset-button" onClick={resetToEnglish}>
+              🌐 English
+            </button>
+          )}
         </header>
 
         <section className="hero">
