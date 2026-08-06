@@ -18,6 +18,9 @@ const app = Fastify({ logger: true, bodyLimit: 64 * 1024 });
 const port = Number(process.env.PORT || 8787);
 const allowedPhoneNumbers = parseAllowedPhoneNumbers(process.env.CALLE_ALLOWED_NUMBERS);
 const calleRegion = process.env.CALLE_REGION || "US";
+// Canonical English tag used as the "friend/family can read it too" copy of
+// every result, and as the source language of the mock engine's text.
+const ENGLISH_LOCALE = "en-US";
 
 // CALL-E ties the language its voice agent SPEAKS to the recipient region:
 // Spanish lives under MX, Hindi under IN, Arabic under AE, and so on (see
@@ -254,10 +257,26 @@ app.post("/api/missions/run", async (request, reply) => {
   }
 
   if (!realCallsEnabled) {
+    // Mock engine speaks English; also render it in the person's language so
+    // they read the outcome in their own words, while keeping the English copy
+    // for an English-speaking friend or family member helping them.
+    const english = mission.targets.map((_target, index) =>
+      template.mockResult(mission as never, index)
+    );
+    const inUserLocale = await Promise.all(
+      english.map((result) =>
+        translateResultStrings(
+          result as CallResult<unknown> & Record<string, unknown>,
+          ENGLISH_LOCALE,
+          mission.userLocale
+        )
+      )
+    );
     return {
       missionId: mission.id,
       mode: "mock",
-      results: mission.targets.map((_target, index) => template.mockResult(mission as never, index))
+      results: inUserLocale,
+      resultsEnglish: english
     };
   }
 
@@ -276,6 +295,7 @@ app.post("/api/missions/run", async (request, reply) => {
 
   const client = getCalleClient();
   const results: CallResult<unknown>[] = [];
+  const resultsEnglish: CallResult<unknown>[] = [];
 
   for (const target of mission.targets) {
     const idempotencyKey = makeIdempotencyKey(mission.kind, mission.id, target.id);
@@ -308,16 +328,18 @@ app.post("/api/missions/run", async (request, reply) => {
         target,
         providerResult as unknown as Record<string, unknown>
       );
-      // Boundary OUT: translate result strings callLocale -> userLocale (no-op when equal).
-      const translated = await translateResultStrings(
-        normalized as CallResult<unknown> & Record<string, unknown>,
-        callLocale,
-        mission.userLocale
-      );
+      // Boundary OUT: translate result strings callLocale -> userLocale (no-op
+      // when equal), plus an English copy for a friend/family helper.
+      const normalizedResult = normalized as CallResult<unknown> & Record<string, unknown>;
+      const [translated, translatedEnglish] = await Promise.all([
+        translateResultStrings(normalizedResult, callLocale, mission.userLocale),
+        translateResultStrings(normalizedResult, callLocale, ENGLISH_LOCALE)
+      ]);
       results.push(translated);
+      resultsEnglish.push(translatedEnglish);
     } catch (error) {
       request.log.error(error, `CALL-E failed for target ${target.id}`);
-      results.push({
+      const failure: CallResult<unknown> = {
         targetId: target.id,
         venueName: target.venueName,
         status: "failed",
@@ -328,13 +350,15 @@ app.post("/api/missions/run", async (request, reply) => {
         followUpInstructions: "The call did not complete. Review the error before retrying.",
         completedAt: new Date().toISOString(),
         data: {} as never
-      });
+      };
+      results.push(failure);
+      resultsEnglish.push(failure);
     } finally {
       inFlightKeys.delete(idempotencyKey);
     }
   }
 
-  return { missionId: mission.id, mode: "real", results };
+  return { missionId: mission.id, mode: "real", results, resultsEnglish };
 });
 
 const webRoot = resolve(process.cwd(), "dist");

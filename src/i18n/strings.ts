@@ -24,6 +24,10 @@ export type UIStrings = {
   screen1Subtitle: string;
   intentLabel: string;
   intentPlaceholder: string;
+  detectLanguageButton: string;
+  detectingLanguageButton: string;
+  resultsInEnglishToggle: string;
+  resultsInMyLanguageToggle: string;
   yourLanguageLabel: string;
   callLanguageLabel: string;
   callLanguageSameOption: string;
@@ -81,6 +85,10 @@ export const EN: UIStrings = {
   screen1Subtitle: "Tell us in your own words — any language is fine.",
   intentLabel: "What you want handled",
   intentPlaceholder: 'e.g. "quiero una cita con mi dentista lo antes posible"',
+  detectLanguageButton: "Show this page in my language",
+  detectingLanguageButton: "Detecting your language…",
+  resultsInEnglishToggle: "View in English",
+  resultsInMyLanguageToggle: "View in my language",
   yourLanguageLabel: "Your language",
   callLanguageLabel: "Call in a different language (optional)",
   callLanguageSameOption: "Same as my language",

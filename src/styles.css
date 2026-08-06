@@ -444,6 +444,35 @@ body {
   background: rgba(255, 255, 255, 0.6);
 }
 
+.locale-detect-button {
+  align-self: flex-start;
+  margin-top: 0.6rem;
+  font-size: 0.85rem;
+  padding: 0.55rem 1rem;
+}
+
+.locale-detect-button::before {
+  content: "🌐";
+  font-size: 0.95rem;
+}
+
+.locale-detect-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.results-lang-toggle {
+  align-self: flex-start;
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.95rem;
+}
+
+.results-lang-toggle::before {
+  content: "🌐";
+  font-size: 0.95rem;
+}
+
 .button-row {
   display: flex;
   gap: 0.75rem;

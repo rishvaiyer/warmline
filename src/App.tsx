@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { EN, type UIStrings } from "./i18n/strings.js";
 
 type Target = {
@@ -41,6 +41,9 @@ type RunResponse = {
   missionId: string;
   mode: string;
   results: CallResult[];
+  // English copy of every result, so a friend/family helper who reads English
+  // can follow along. Identical to `results` when the user's language is English.
+  resultsEnglish?: CallResult[];
 };
 
 // The UI localizes via LLM translation, so any language works. These are the
@@ -177,6 +180,7 @@ export default function App() {
   const [disclosureAccepted, setDisclosureAccepted] = useState(false);
   const [interpretError, setInterpretError] = useState("");
   const [interpreting, setInterpreting] = useState(false);
+  const [localizing, setLocalizing] = useState(false);
 
   // Screen 2 state
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -185,6 +189,7 @@ export default function App() {
 
   // Screen 3 state
   const [runResult, setRunResult] = useState<RunResponse | null>(null);
+  const [showEnglishResults, setShowEnglishResults] = useState(false);
 
   function updateTarget(id: string, patch: Partial<Target>) {
     setTargets((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
@@ -198,10 +203,6 @@ export default function App() {
   function removeTarget(id: string) {
     setTargets((prev) => (prev.length > 1 ? prev.filter((t) => t.id !== id) : prev));
   }
-
-  // Remember the last intent text we already ran language detection on, so
-  // blurring the field repeatedly (without editing) doesn't re-detect.
-  const detectedForTextRef = useRef("");
 
   // Flip the whole UI into `detectedLocale` (labels, buttons, disclosure,
   // results) so a non-native speaker can finish the form in their own language.
@@ -233,23 +234,26 @@ export default function App() {
     }
   }
 
-  // As soon as the person finishes typing their request, detect its language
-  // and flip the UI -- before they even reach the "who to call" fields.
-  async function handleIntentBlur() {
+  // Explicit "show this page in my language" action. The person types their
+  // request, taps the button, and we detect the language of what they wrote
+  // and flip the whole UI into it -- with a visible loading label, so the
+  // wait is intentional rather than the silent lag the old on-blur had.
+  async function handleDetectAndLocalize() {
     const text = intentText.trim();
-    if (text.length < 8 || text === detectedForTextRef.current) return;
-    detectedForTextRef.current = text;
+    if (text.length < 3 || localizing) return;
+    setLocalizing(true);
     try {
       const response = await fetch("/api/intent/detect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text })
       });
-      if (!response.ok) return;
-      const body = await response.json();
-      await applyDetectedLocale(body.detectedLocale || "en");
+      const detected = response.ok ? (await response.json()).detectedLocale : "en";
+      await applyDetectedLocale(detected || "en");
     } catch {
-      // Ignore detection failures; the UI stays in its current language.
+      // Leave the UI in its current language on failure.
+    } finally {
+      setLocalizing(false);
     }
   }
 
@@ -396,11 +400,19 @@ export default function App() {
                 className="intent-textarea"
                 value={intentText}
                 onChange={(e) => setIntentText(e.target.value)}
-                onBlur={handleIntentBlur}
                 placeholder={s.intentPlaceholder}
                 rows={4}
               />
             </label>
+
+            <button
+              type="button"
+              className="secondary-button locale-detect-button"
+              onClick={handleDetectAndLocalize}
+              disabled={localizing || intentText.trim().length < 3}
+            >
+              {localizing ? s.detectingLanguageButton : s.detectLanguageButton}
+            </button>
 
             <div className="field-row">
               <label className="field">
@@ -545,15 +557,31 @@ export default function App() {
               {s.modeLabel} {runResult.mode}
             </p>
 
+            {!userLocale.toLowerCase().startsWith("en") && runResult.resultsEnglish && (
+              <button
+                type="button"
+                className="secondary-button results-lang-toggle"
+                onClick={() => setShowEnglishResults((v) => !v)}
+              >
+                {showEnglishResults ? s.resultsInMyLanguageToggle : s.resultsInEnglishToggle}
+              </button>
+            )}
+
             <ul className="results-list">
-              {runResult.results.map((result) => {
+              {(showEnglishResults && runResult.resultsEnglish
+                ? runResult.resultsEnglish
+                : runResult.results
+              ).map((result) => {
+                // When showing the English copy, label it in English too so a
+                // friend/family helper reads a fully-English card.
+                const rs = showEnglishResults ? EN : s;
                 const isBest = result.status === "completed" && result.confidence === "high";
                 return (
                   <li className={`result-item${isBest ? " result-item-best" : ""}`} key={result.targetId}>
                     {isBest && (
                       <div className="result-best-badge">
                         <CheckIcon />
-                        {s.bestAnswerBadge}
+                        {rs.bestAnswerBadge}
                       </div>
                     )}
                     <div className="result-header">
@@ -561,7 +589,7 @@ export default function App() {
                       <span className={`outcome-chip outcome-${result.status}`}>{result.outcome}</span>
                     </div>
                     <p className="result-confidence">
-                      {s.confidenceLabel} {result.confidence}
+                      {rs.confidenceLabel} {result.confidence}
                     </p>
                     <dl className="result-data">
                       {Object.entries(result.data).map(([key, value]) => (
@@ -573,7 +601,7 @@ export default function App() {
                     </dl>
                     {result.followUpRequired && (
                       <p className="result-followup">
-                        {s.followUpLabel} {result.followUpInstructions}
+                        {rs.followUpLabel} {result.followUpInstructions}
                       </p>
                     )}
                     {result.evidence.length > 0 && (
