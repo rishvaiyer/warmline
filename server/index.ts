@@ -1,21 +1,46 @@
 import Fastify from "fastify";
 import fastifyStatic from "@fastify/static";
+import { CalleClient } from "@call-e/calle";
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
-import { baseMissionSchema, makeIdempotencyKey, parseAllowedPhoneNumbers } from "../src/domain/base.js";
+import {
+  baseMissionSchema,
+  makeIdempotencyKey,
+  parseAllowedPhoneNumbers,
+  type CallResult
+} from "../src/domain/base.js";
 import { getTemplate } from "../src/domain/registry.js";
 import { interpretIntent } from "../src/domain/interpret.js";
 import { translateMissionFields, translateResultStrings } from "../src/domain/translate.js";
 
 const app = Fastify({ logger: true, bodyLimit: 64 * 1024 });
 const port = Number(process.env.PORT || 8787);
-const realCallsEnabled = process.env.ALLOW_REAL_CALLS === "true";
 const allowedPhoneNumbers = parseAllowedPhoneNumbers(process.env.CALLE_ALLOWED_NUMBERS);
+const calleRegion = process.env.CALLE_REGION || "US";
+
+// Real calls require the explicit opt-in flag, a CALL-E API key, AND at least
+// one server-side allowlisted number. If any of those is missing, the server
+// stays in mock mode -- that is the default and the safe fallback.
+const realCallsEnabled =
+  process.env.ALLOW_REAL_CALLS === "true" &&
+  Boolean(process.env.CALLE_API_KEY) &&
+  allowedPhoneNumbers.size > 0;
+
 const inFlightKeys = new Set<string>();
+
+let calleClient: CalleClient | undefined;
+function getCalleClient(): CalleClient {
+  if (!calleClient) {
+    calleClient = new CalleClient({ apiKey: process.env.CALLE_API_KEY as string });
+  }
+  return calleClient;
+}
 
 app.get("/api/health", async () => ({
   ok: true,
-  mode: "mock"
+  mode: realCallsEnabled ? "real" : "mock",
+  realCallsConfigured: realCallsEnabled,
+  realCallProtection: realCallsEnabled ? "server_allowlist" : "disabled"
 }));
 
 app.post("/api/intent/interpret", async (request, reply) => {
@@ -27,7 +52,7 @@ app.post("/api/intent/interpret", async (request, reply) => {
     return reply.code(400).send({ error: "Describe what you need in a bit more detail." });
   }
 
-  const plan = interpretIntent(text, userLocale);
+  const plan = await interpretIntent(text, userLocale);
   return { plan };
 });
 
@@ -78,10 +103,6 @@ app.post("/api/missions/run", async (request, reply) => {
     };
   }
 
-  // Allowlist + idempotency scaffolding kept in no-op-safe shape, mirroring
-  // foundline/server/index.ts, so real calls can be wired in without
-  // redesigning this route. None of it has an effect while realCallsEnabled
-  // stays false, but it fails closed if it were ever reached.
   const disallowedTargets = mission.targets.filter(
     (target) => !allowedPhoneNumbers.has(target.phoneE164)
   );
@@ -90,26 +111,68 @@ app.post("/api/missions/run", async (request, reply) => {
       error: "Real call blocked. Every recipient must be included in the server-side CALLE_ALLOWED_NUMBERS list."
     });
   }
+
   const callLocale = mission.callLocale ?? mission.userLocale;
-  // Boundary IN: translate free-text fields userLocale -> callLocale (no-op today).
-  const localizedMission = translateMissionFields(mission, mission.userLocale, callLocale);
+  // Boundary IN: translate free-text fields userLocale -> callLocale (no-op when equal).
+  const localizedMission = await translateMissionFields(mission, mission.userLocale, callLocale);
+
+  const client = getCalleClient();
+  const results: CallResult<unknown>[] = [];
+
   for (const target of mission.targets) {
     const idempotencyKey = makeIdempotencyKey(mission.kind, mission.id, target.id);
     if (inFlightKeys.has(idempotencyKey)) {
       return reply.code(409).send({ error: `Duplicate call blocked for ${target.venueName}.` });
     }
+
+    inFlightKeys.add(idempotencyKey);
+    try {
+      const providerResult = await client.calls.createAndWait(
+        {
+          task: template.buildCallTask(localizedMission as never, target),
+          recipient: { phone: target.phoneE164, region: calleRegion, locale: callLocale },
+          resultSchema: template.resultSchema,
+          metadata: {
+            workflow: mission.kind,
+            mission_id: mission.id,
+            target_id: target.id,
+            idempotency_key: idempotencyKey
+          }
+        },
+        { idempotencyKey, timeoutMs: 10 * 60 * 1000 }
+      );
+
+      const normalized = template.normalizeResult(
+        target,
+        providerResult as unknown as Record<string, unknown>
+      );
+      // Boundary OUT: translate result strings callLocale -> userLocale (no-op when equal).
+      const translated = await translateResultStrings(
+        normalized as CallResult<unknown> & Record<string, unknown>,
+        callLocale,
+        mission.userLocale
+      );
+      results.push(translated);
+    } catch (error) {
+      request.log.error(error, `CALL-E failed for target ${target.id}`);
+      results.push({
+        targetId: target.id,
+        venueName: target.venueName,
+        status: "failed",
+        outcome: "unknown",
+        confidence: "low",
+        evidence: [],
+        followUpRequired: true,
+        followUpInstructions: "The call did not complete. Review the error before retrying.",
+        completedAt: new Date().toISOString(),
+        data: {} as never
+      });
+    } finally {
+      inFlightKeys.delete(idempotencyKey);
+    }
   }
 
-  // TODO: real CALL-E path. Construct a CalleClient (from "@call-e/calle"), call
-  // template.buildCallTask(localizedMission, target) for each target, send it
-  // through client.calls.createAndWait with template.resultSchema, normalize
-  // with template.normalizeResult, then translate the result strings back with
-  // translateResultStrings(result, callLocale, mission.userLocale) (boundary
-  // OUT) before returning. Deliberately not implemented here: this scaffold
-  // never imports "@call-e/calle" so the build never depends on its types.
-  // See foundline/server/index.ts for the reference shape.
-  request.log.info({ localizedMission, translateResultStrings: typeof translateResultStrings });
-  throw new Error("real calls not implemented in scaffold");
+  return { missionId: mission.id, mode: "real", results };
 });
 
 const webRoot = resolve(process.cwd(), "dist");

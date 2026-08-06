@@ -1,8 +1,8 @@
 # Warmline
 
 An accessibility-first calling concierge. Say what you need, in any language, plus who to call — Warmline
-turns that into a plan you approve, places the call (mock in this scaffold), and reports the answer back
-in your own language.
+turns that into a plan you approve, places the call (mock by default; real calls opt-in, see below), and
+reports the answer back in your own language.
 
 Built for non-native speakers and people with phone anxiety: you never have to make the call yourself.
 
@@ -10,15 +10,29 @@ See `docs/design.md` for the full design spec (intent-first flow, MissionTemplat
 language model, and the safety/permitted-use model). Warmline generalizes
 [FoundLine](../foundline)'s lost-item calling engine into an intent-first, multi-template concierge.
 
-## Current state (v0 scaffold)
+## Current state
 
 - Intent box -> plan review -> results, three-screen flow.
-- Mock keyword-based intent interpreter (`src/domain/interpret.ts`) — TODO: real LLM interpretation.
+- Intent interpretation (`src/domain/interpret.ts`): real LLM classification + field extraction via
+  `@anthropic-ai/sdk` when `ANTHROPIC_API_KEY` is set, falling back to a keyword classifier otherwise
+  (or if the LLM call fails).
 - Four mission templates: lost & found, appointment scout, reachability check, generic.
-- Mock-only call engine (`server/index.ts`); the real CALL-E path is a clearly-commented stub that
-  throws `"real calls not implemented in scaffold"`.
-- Translation boundaries (`src/domain/translate.ts`) are stubs: no-op when locales match, otherwise
-  prefix a `[locale] ` marker — TODO: real LLM translation.
+- Call engine (`server/index.ts`): mock by default. Real CALL-E calls only run when
+  `ALLOW_REAL_CALLS=true`, `CALLE_API_KEY` is set, and the target is in the server-side
+  `CALLE_ALLOWED_NUMBERS` allowlist — any of those missing keeps the server in mock mode.
+- Translation boundaries (`src/domain/translate.ts`): real LLM translation (batched per boundary) when
+  `ANTHROPIC_API_KEY` is set; no-op when `userLocale === callLocale`; otherwise a `[locale] ` marker
+  stub, same as the no-key fallback.
+
+## Environment
+
+Copy `.env.example` to `.env` and fill in what you need:
+
+- Nothing set: keyword-based interpretation, marker-stub translation, mock calls. No network calls,
+  fully offline-safe.
+- `ANTHROPIC_API_KEY` only: real LLM interpretation + translation, calls still mocked.
+- `ANTHROPIC_API_KEY` + `ALLOW_REAL_CALLS=true` + `CALLE_API_KEY` + `CALLE_ALLOWED_NUMBERS`: real phone
+  calls via CALL-E, restricted to the allowlisted numbers.
 
 ## Run locally
 
@@ -46,20 +60,15 @@ src/
     template.ts         MissionTemplate<TInput, TData> contract
     missions/           lostAndFound, appointmentScout, reachability, generic
     registry.ts          kind -> template lookup
-    interpret.ts         mock free-text -> plan classifier
-    translate.ts          stub translation boundaries
+    interpret.ts         free-text -> plan (LLM, keyword-classifier fallback)
+    translate.ts          locale-boundary translation (LLM, marker-stub fallback)
+    llm.ts               shared Anthropic client + model constants
   styles.css
 server/
-  index.ts             Fastify API: intent/interpret, missions/run, health
+  index.ts             Fastify API: intent/interpret, missions/run, health; real CALL-E path
 docs/
   design.md            Full design spec (copied from foundline)
 ```
-
-## TODO before this is more than a scaffold
-
-- Real CALL-E integration for `POST /api/missions/run` (currently mock-only).
-- Real LLM-based intent interpretation (currently keyword matching).
-- Real LLM-based translation at the two locale boundaries.
 
 ## License
 
