@@ -232,6 +232,37 @@ body {
   max-width: 46ch;
 }
 
+/* Reassurance chips: the safety promises, up front, to ease the anxiety of
+   handing off a phone call. */
+.trust-chips {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.trust-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid rgba(35, 95, 74, 0.15);
+  padding: 0.34rem 0.72rem;
+  border-radius: var(--radius-pill);
+}
+
+.trust-chip svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+}
+
 /* ---------- Progress steps ---------- */
 
 .progress-steps {
@@ -980,5 +1011,24 @@ body {
 
   .result-item {
     background: #1e201c;
+  }
+}
+
+/* Respect users who ask for less motion: drop decorative animation and
+   transitions, but keep the loading spinner turning so it still reads as
+   "working". Matters for an accessibility-first audience. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .locale-spinner {
+    animation-duration: 0.7s !important;
+    animation-iteration-count: infinite !important;
   }
 }

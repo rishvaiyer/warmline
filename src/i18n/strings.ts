@@ -12,6 +12,9 @@ export type UIStrings = {
   headlineLine1: string;
   headlineLine2: string;
   subhead: string;
+  trustDisclosed: string;
+  trustNoCommit: string;
+  trustApprove: string;
 
   // Progress steps
   stepIntake: string;
@@ -76,6 +79,9 @@ export const EN: UIStrings = {
   headlineLine2: "We make the call.",
   subhead:
     "Tell us what you need, in any language. Warmline calls the business, gets a real answer, and reads it back to you. You approve every call before it happens. Built for anyone who finds phone calls hard.",
+  trustDisclosed: "AI-disclosed on every call",
+  trustNoCommit: "Never books or pays",
+  trustApprove: "You approve first",
 
   stepIntake: "What you need",
   stepReview: "Review",
@@ -83,7 +89,7 @@ export const EN: UIStrings = {
   progressAriaLabel: "Progress",
 
   screen1Title: "What do you need help with?",
-  screen1Subtitle: "Tell us in your own words — any language is fine.",
+  screen1Subtitle: "Tell us in your own words. Any language is fine.",
   intentLabel: "What you want handled",
   intentPlaceholder: 'e.g. "quiero una cita con mi dentista lo antes posible"',
   detectLanguageButton: "Show this page in my language",
@@ -116,7 +122,7 @@ export const EN: UIStrings = {
   planCallLabel: "We'll call",
   planAskLabel: "And ask",
   planSayLabel: "We'll say, first thing",
-  planReassurance: "We won't book, pay, or commit to anything on this call — only you can approve that.",
+  planReassurance: "We won't book, pay, or commit to anything on this call. Only you can approve that.",
   errorRunFailed: "The mission could not run.",
   backButton: "Back",
   preparingCallButton: "Preparing the call…",

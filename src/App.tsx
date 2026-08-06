@@ -488,6 +488,20 @@ export default function App() {
             <em>{s.headlineLine2}</em>
           </h1>
           <p>{s.subhead}</p>
+          <ul className="trust-chips" aria-label={s.disclosureText}>
+            <li className="trust-chip">
+              <CheckIcon />
+              {s.trustApprove}
+            </li>
+            <li className="trust-chip">
+              <CheckIcon />
+              {s.trustDisclosed}
+            </li>
+            <li className="trust-chip">
+              <CheckIcon />
+              {s.trustNoCommit}
+            </li>
+          </ul>
         </section>
 
         <ol className="progress-steps" aria-label={s.progressAriaLabel}>
