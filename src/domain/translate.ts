@@ -3,13 +3,13 @@
 // callLocale) and result strings coming OUT (callLocale -> userLocale). Both
 // are no-ops when the two locales match.
 //
-// Real path: a single batched LLM call (see src/domain/llm.ts) per boundary,
-// translating only human-readable string values -- never ids, kind
-// discriminators, locale codes, enum-valued fields, or phone numbers. Falls
-// back to the marker-stub (`[to] ...`) when no ANTHROPIC_API_KEY is
-// configured, or if the LLM call fails for any reason.
+// Real path: a single batched, provider-agnostic LLM call (see
+// src/domain/llm.ts) per boundary, translating only human-readable string
+// values -- never ids, kind discriminators, locale codes, enum-valued
+// fields, or phone numbers. Falls back to the marker-stub (`[to] ...`) when
+// no LLM key is configured, or if the LLM call fails for any reason.
 
-import { getAnthropicClient, hasAnthropicKey, TRANSLATE_MODEL } from "./llm.js";
+import { llmComplete, hasLLMKey } from "./llm.js";
 
 function markString(value: string, from: string, to: string): string {
   if (from === to || value.trim().length === 0) return value;
@@ -41,24 +41,22 @@ async function translateBatch(
   const keys = Object.keys(values);
   if (keys.length === 0) return {};
 
-  if (!hasAnthropicKey()) {
+  if (!hasLLMKey()) {
     return markBatch(values, from, to);
   }
 
   try {
-    const client = getAnthropicClient();
-    const response = await client.messages.create({
-      model: TRANSLATE_MODEL,
-      max_tokens: 2048,
+    const text = await llmComplete({
       system: [
         `Translate each value in the given JSON object from locale "${from}" to locale "${to}".`,
         "Preserve meaning and tone. Keep proper nouns, phone numbers, dates, and reference codes unchanged unless a locale-appropriate form is obviously expected.",
         "Respond with ONLY a JSON object using the exact same keys as the input, each value replaced by its translation. No commentary, no markdown fences."
       ].join(" "),
-      messages: [{ role: "user", content: JSON.stringify(values) }]
+      user: JSON.stringify(values),
+      maxTokens: 2048,
+      json: true
     });
 
-    const text = response.content.find((block) => block.type === "text")?.text ?? "";
     const parsed = JSON.parse(extractJson(text)) as Record<string, unknown>;
 
     const result: Record<string, string> = {};

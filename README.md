@@ -34,15 +34,31 @@ is allowlisted (see [Environment](#environment)); otherwise Warmline uses a dete
 
 - Intent box -> plan review -> results, three-screen flow.
 - Intent interpretation (`src/domain/interpret.ts`): real LLM classification + field extraction via
-  `@anthropic-ai/sdk` when `ANTHROPIC_API_KEY` is set, falling back to a keyword classifier otherwise
-  (or if the LLM call fails).
+  either `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` (see [LLM provider](#llm-provider) below), falling back
+  to a keyword classifier otherwise (or if the LLM call fails).
 - Four mission templates: lost & found, appointment scout, reachability check, generic.
 - Call engine (`server/index.ts`): mock by default. Real CALL-E calls only run when
   `ALLOW_REAL_CALLS=true`, `CALLE_API_KEY` is set, and the target is in the server-side
   `CALLE_ALLOWED_NUMBERS` allowlist — any of those missing keeps the server in mock mode.
 - Translation boundaries (`src/domain/translate.ts`): real LLM translation (batched per boundary) when
-  `ANTHROPIC_API_KEY` is set; no-op when `userLocale === callLocale`; otherwise a `[locale] ` marker
+  an LLM key is configured; no-op when `userLocale === callLocale`; otherwise a `[locale] ` marker
   stub, same as the no-key fallback.
+
+## LLM provider
+
+Warmline works with either an Anthropic key or an OpenAI key — set whichever one you have:
+
+- `ANTHROPIC_API_KEY` — used for interpretation, translation, and UI localization via Claude.
+- `OPENAI_API_KEY` — used for the same features via OpenAI, if no Anthropic key is present.
+- **If both are set, Anthropic is preferred.**
+- An OpenAI key pasted into `ANTHROPIC_API_KEY` by mistake also works: Warmline only treats
+  `ANTHROPIC_API_KEY` as an Anthropic credential if it looks like one (starts with `sk-ant`); otherwise
+  it's used as the OpenAI key automatically. So it doesn't matter which of the two env var names you put
+  an OpenAI key in.
+- Neither set: keyword-based interpretation, marker-stub translation, offline script-based locale
+  detection, mock calls. No network calls, fully offline-safe.
+
+See `src/domain/llm.ts` for the provider-selection logic.
 
 ## Environment
 
@@ -50,8 +66,9 @@ Copy `.env.example` to `.env` and fill in what you need:
 
 - Nothing set: keyword-based interpretation, marker-stub translation, mock calls. No network calls,
   fully offline-safe.
-- `ANTHROPIC_API_KEY` only: real LLM interpretation + translation, calls still mocked.
-- `ANTHROPIC_API_KEY` + `ALLOW_REAL_CALLS=true` + `CALLE_API_KEY` + `CALLE_ALLOWED_NUMBERS`: real phone
+- `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` only: real LLM interpretation + translation, calls still
+  mocked.
+- An LLM key + `ALLOW_REAL_CALLS=true` + `CALLE_API_KEY` + `CALLE_ALLOWED_NUMBERS`: real phone
   calls via CALL-E, restricted to the allowlisted numbers.
 
 ## Run locally
@@ -82,7 +99,7 @@ src/
     registry.ts          kind -> template lookup
     interpret.ts         free-text -> plan (LLM, keyword-classifier fallback)
     translate.ts          locale-boundary translation (LLM, marker-stub fallback)
-    llm.ts               shared Anthropic client + model constants
+    llm.ts               provider-agnostic LLM layer (Anthropic + OpenAI) + model constants
   styles.css
 server/
   index.ts             Fastify API: intent/interpret, missions/run, health; real CALL-E path

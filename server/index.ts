@@ -12,7 +12,7 @@ import {
 import { getTemplate } from "../src/domain/registry.js";
 import { interpretIntent } from "../src/domain/interpret.js";
 import { translateMissionFields, translateResultStrings } from "../src/domain/translate.js";
-import { getAnthropicClient, hasAnthropicKey, TRANSLATE_MODEL } from "../src/domain/llm.js";
+import { llmComplete, hasLLMKey } from "../src/domain/llm.js";
 
 const app = Fastify({ logger: true, bodyLimit: 64 * 1024 });
 const port = Number(process.env.PORT || 8787);
@@ -100,18 +100,16 @@ function detectLocaleByScript(text: string): string | null {
 async function detectLocale(text: string): Promise<string> {
   const byScript = detectLocaleByScript(text);
   if (byScript) return byScript;
-  if (!hasAnthropicKey()) return "en";
+  if (!hasLLMKey()) return "en";
   try {
-    const client = getAnthropicClient();
-    const response = await client.messages.create({
-      model: TRANSLATE_MODEL,
-      max_tokens: 16,
+    const raw = await llmComplete({
       system:
         "Identify the language of the user's text. Respond with ONLY its BCP-47 language code (e.g. es, fr, de, vi, tl). Nothing else.",
-      messages: [{ role: "user", content: text.slice(0, 500) }]
+      user: text.slice(0, 500),
+      maxTokens: 16
     });
-    const raw = (response.content.find((b) => b.type === "text")?.text ?? "").trim().toLowerCase();
-    const match = raw.match(/[a-z]{2,3}(-[a-z]{2,4})?/);
+    const lower = raw.trim().toLowerCase();
+    const match = lower.match(/[a-z]{2,3}(-[a-z]{2,4})?/);
     return match ? match[0] : "en";
   } catch {
     return "en";
@@ -128,7 +126,7 @@ app.post("/api/intent/detect", async (request) => {
 
 // Auto-localizes the whole UI to whatever language the person typed their
 // request in (see src/i18n/strings.ts for the EN bundle this translates).
-// English in, or no ANTHROPIC_API_KEY, is always a no-op passthrough -- this
+// English in, or no LLM key configured, is always a no-op passthrough -- this
 // route must never 500, since the intake flow depends on it not blocking.
 app.post("/api/ui/localize", async (request, reply) => {
   const body = request.body as { locale?: unknown; strings?: unknown } | undefined;
@@ -138,7 +136,7 @@ app.post("/api/ui/localize", async (request, reply) => {
       ? (body.strings as Record<string, string>)
       : {};
 
-  if (locale.toLowerCase().startsWith("en") || !hasAnthropicKey()) {
+  if (locale.toLowerCase().startsWith("en") || !hasLLMKey()) {
     return { strings };
   }
 
@@ -148,20 +146,18 @@ app.post("/api/ui/localize", async (request, reply) => {
   }
 
   try {
-    const client = getAnthropicClient();
-    const response = await client.messages.create({
-      model: TRANSLATE_MODEL,
-      max_tokens: 4096,
+    const text = await llmComplete({
       system: [
         `Translate each value in the given JSON object of UI copy from English to the locale "${locale}".`,
         "Preserve meaning and tone -- this is interface copy (headings, labels, buttons, short sentences), not prose.",
         "Preserve any {placeholder}-style interpolation tokens exactly as written, and never translate the product name \"Warmline\".",
         "Respond with ONLY a JSON object using the exact same keys as the input, each value replaced by its translation. No commentary, no markdown fences."
       ].join(" "),
-      messages: [{ role: "user", content: JSON.stringify(strings) }]
+      user: JSON.stringify(strings),
+      maxTokens: 4096,
+      json: true
     });
 
-    const text = response.content.find((block) => block.type === "text")?.text ?? "";
     const parsed = JSON.parse(extractJsonBlock(text)) as Record<string, unknown>;
 
     const result: Record<string, string> = {};
