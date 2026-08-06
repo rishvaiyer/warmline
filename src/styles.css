@@ -126,8 +126,11 @@ body {
   font-size: 0.82rem;
   font-weight: 600;
   color: #4a4e47;
-  padding-right: 0.4rem;
-  max-width: 42vw;
+  padding: 0 0.1rem;
+  max-width: 8.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -138,9 +141,13 @@ body {
 }
 
 @media (max-width: 460px) {
+  .lang-switcher {
+    padding: 0.28rem 0.5rem;
+  }
+
   .lang-switcher-select {
     font-size: 0.76rem;
-    max-width: 38vw;
+    max-width: 6rem;
   }
 }
 
@@ -1010,6 +1017,22 @@ body {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6l4 4 4-4' stroke='%234fae86' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 0.9rem center;
+  }
+
+  /* Language switcher: subtle translucent-light pill on dark, not a glaring
+     white block. */
+  .lang-switcher {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
+
+  .lang-switcher:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--accent);
+  }
+
+  .lang-switcher-select {
+    color: var(--ink);
   }
 
   .target-row,
