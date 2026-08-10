@@ -13,7 +13,6 @@ export type UIStrings = {
   headlineLine2: string;
   subhead: string;
   trustDisclosed: string;
-  trustNoCommit: string;
   trustApprove: string;
 
   // Progress steps
@@ -97,7 +96,6 @@ export const EN: UIStrings = {
   subhead:
     "Tell us what you need, in any language. Warmline calls the business, gets a real answer, and gives it back to you in writing. You approve every call before it happens. The whole thing is typed and read, so you never have to hear or speak on a call. Built for Deaf and hard-of-hearing callers, non-native speakers, and anyone who finds phone calls hard.",
   trustDisclosed: "AI-disclosed on every call",
-  trustNoCommit: "Never books or pays",
   trustApprove: "You approve first",
 
   stepIntake: "What you need",

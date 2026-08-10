@@ -857,10 +857,6 @@ export default function App() {
               <CheckIcon />
               {s.trustDisclosed}
             </li>
-            <li className="trust-chip">
-              <CheckIcon />
-              {s.trustNoCommit}
-            </li>
           </ul>
         </section>
 
