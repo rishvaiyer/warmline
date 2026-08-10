@@ -57,6 +57,11 @@ until you say so.
 
 Language is not a setting you hunt for. Warmline meets people where they are:
 
+- **Say it instead of typing it.** Tap the microphone and speak your request in
+  any language. Warmline transcribes it, writes it into the box, and uses the
+  language it heard to flip the whole page to match: speak Gujarati and the
+  interface becomes Gujarati. Speaking is always an *addition* to typing, never
+  a requirement.
 - **Auto-detect from what you type.** Write your request in any language, and the
   button offers to flip the page into it by name: *"Show this page in Español."*
 - **Or pick it directly.** Choosing from the language dropdown translates the
@@ -79,6 +84,14 @@ Two independent "language knobs" make this work:
 |------|----------|------------|
 | `userLocale` | The interface and the written answer | LLM translation (Claude or OpenAI) |
 | `callLocale` | The language the agent **speaks on the phone** | CALL-E's region + locale |
+
+Voice input is provider-agnostic in the same shape as the LLM layer
+(`src/domain/speech.ts`), resolved by whichever key is present:
+`ELEVENLABS_API_KEY` uses **Scribe v2** (90+ languages, and the only option that
+returns a *confidence score* for the language it detected, which is what lets
+Warmline refuse to flip the interface on a doubtful guess); otherwise it falls
+back to **OpenAI transcription** on the key the app already uses, so voice needs
+no new account. With neither key the microphone simply never renders.
 
 A live example of the interface translating itself:
 
@@ -116,8 +129,10 @@ SDK, passing:
 "Call anyone" only stays safe with guardrails. Every CALL-E call is wrapped in:
 
 - ✅ **Approval-first review** — you confirm the plan before anything dials.
-- ✅ **Spoken AI disclosure** — the agent always says it is an AI.
-- ✅ **Server-side allowlist** (`CALLE_ALLOWED_NUMBERS`) and **E.164 validation**.
+- ✅ **Spoken AI disclosure** — the agent always says it is an AI, names who it is
+  calling for, and never claims to be you. A caller name is required for every
+  mission, not just the ones that book.
+- ✅ **E.164 validation** on every number before it can be dialled.
 - ✅ **Never spends your money.** The agent has no card or account details and is
   instructed never to pay, promise to pay, or accept a deposit, prepayment, or
   cancellation fee. If money is required to proceed, it stops, commits to
@@ -126,10 +141,21 @@ SDK, passing:
   tick the booking-consent box *and* give a name to book under. It may hold
   exactly one appointment, only inside the time range you approved. Leave the box
   unticked and it just asks and reports, committing to nothing.
+- ✅ **Money commitments are detected and surfaced.** The rule above is an
+  instruction to a voice agent, not a gate, so Warmline checks two ways whether a
+  call committed you anyway: the agent must declare it in the structured result,
+  *and* Warmline reads CALL-E's transcript itself, independently of what the
+  agent claims. Either signal raises a warning on the result card telling you to
+  contact the business. See `src/domain/commitments.ts`.
 - ✅ **Idempotency keys** per call and a **max of 5 targets**.
-- ✅ **Off by default** — real calls run only when `ALLOW_REAL_CALLS=true`,
-  `CALLE_API_KEY` is set, and the number is allowlisted. Otherwise Warmline uses a
-  deterministic mock engine.
+- ✅ **Off by default** — real calls run only when `ALLOW_REAL_CALLS=true` and
+  `CALLE_API_KEY` is set. Otherwise Warmline uses a deterministic mock engine.
+
+**What this is not.** The money rule and the booking bounds live in the call task
+sent to CALL-E, which makes them instructions to a language model rather than
+enforced limits. Nothing here can *prevent* an agent going off script. Detection
+is after the fact. Treat the guarantees above as strong defaults, not as a
+sandbox, and keep `ALLOW_REAL_CALLS` off unless you mean it.
 
 ## Under the hood
 
@@ -172,7 +198,8 @@ Copy `.env.example` to `.env` and set what you need:
 |--------------|--------------|
 | Nothing | Keyword interpretation, stub translation, mock calls. Fully offline. |
 | `ANTHROPIC_API_KEY` **or** `OPENAI_API_KEY` | Real LLM interpretation, translation, and UI localization. Calls still mocked. |
-| An LLM key **+** `ALLOW_REAL_CALLS=true` **+** `CALLE_API_KEY` **+** `CALLE_ALLOWED_NUMBERS` | Real phone calls via CALL-E, restricted to the allowlisted numbers. |
+| `ELEVENLABS_API_KEY` (optional) | Voice input via Scribe v2. Without it, an OpenAI key drives voice input instead; without either, the microphone never renders. |
+| An LLM key **+** `ALLOW_REAL_CALLS=true` **+** `CALLE_API_KEY` | **Real phone calls** via CALL-E. There is no number allowlist: anything you approve in the UI will be dialled for real. |
 
 ## Project structure
 
@@ -188,11 +215,14 @@ src/
     interpret.ts       free-text -> plan (LLM, keyword fallback)
     translate.ts       locale-boundary translation (LLM, stub fallback)
     llm.ts             provider-agnostic LLM layer (Anthropic + OpenAI)
+    speech.ts          provider-agnostic speech-to-text (ElevenLabs + OpenAI)
+    commitments.ts     did this call commit the caller to money? (self-report + transcript scan)
   styles.css
 server/
-  index.ts             Fastify API: intent, missions/run, localize, health; CALL-E path
+  index.ts             Fastify API: intent, transcribe, missions/run, localize, health; CALL-E path
 docs/
-  mission-templates-spec.md   Design + mission-template spec
+  design.md            Design + mission-template spec
+  DEVPOST_SUBMISSION.md
 ```
 
 ## License
