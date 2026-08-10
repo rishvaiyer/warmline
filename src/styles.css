@@ -1194,6 +1194,54 @@ color-scheme: dark;
   background: #1e201c;
 }
 
+/* Money warning on a result. Loud on purpose: the caller was not on the call,
+   so this is the only place they can learn something was agreed to in their
+   name. It sits above everything else on the card. */
+.commitment-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.25rem;
+  border: 1.5px solid var(--error);
+  border-radius: var(--radius-field);
+  background: var(--error-soft);
+  color: var(--error);
+  font-size: 0.88rem;
+}
+
+.commitment-warning p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.commitment-warning-title {
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.commitment-warning-quotes-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.commitment-warning-quotes {
+  margin: 0;
+  padding-inline-start: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.commitment-warning-quotes li {
+  font-style: italic;
+  line-height: 1.45;
+}
+
 /* Voice-callback card on the results screen. */
 .callback-card {
   border: 1px dashed var(--border);

@@ -85,6 +85,11 @@ export type UIStrings = {
   bestAnswerBadge: string;
   confidenceLabel: string;
   followUpLabel: string;
+  commitmentWarningTitle: string;
+  commitmentWarningMoney: string;
+  commitmentWarningDetails: string;
+  commitmentWarningTranscript: string;
+  commitmentWarningQuotesLabel: string;
   resultsReassurance: string;
   startOverButton: string;
   callbackTitle: string;
@@ -177,6 +182,14 @@ export const EN: UIStrings = {
   bestAnswerBadge: "Best answer",
   confidenceLabel: "Confidence:",
   followUpLabel: "Follow-up:",
+  commitmentWarningTitle: "Please check this call",
+  commitmentWarningMoney:
+    "The assistant reported agreeing to a charge. It is not supposed to do that. Contact the business directly to check what, if anything, you owe.",
+  commitmentWarningDetails:
+    "The assistant reported giving out card or account details. It is not supposed to do that. Contact the business, and your bank if anything looks wrong.",
+  commitmentWarningTranscript:
+    "Money came up on this call. The assistant says it did not agree to anything, but you were not there, so check the wording below.",
+  commitmentWarningQuotesLabel: "What was said:",
   resultsReassurance:
     "Nothing was paid for. If an appointment was booked, the details are above -- check them, and cancel with the business directly if they are wrong.",
   startOverButton: "Start over",

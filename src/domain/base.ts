@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { CommitmentWarning } from "./commitments.js";
 
 // Shared target + mission shape. Per-mission fields live in each template's
 // intakeSchema (src/domain/template.ts), not here.
@@ -46,6 +47,11 @@ export type CallResult<TData = unknown> = {
   followUpInstructions: string;
   completedAt: string;
   data: TData;
+  // Present only when a call may have committed the caller to money. Filled
+  // centrally in server/index.ts from the agent's own declaration plus an
+  // independent read of the transcript -- see src/domain/commitments.ts.
+  // Absent on a normal call, so the results screen stays quiet.
+  commitmentWarning?: CommitmentWarning;
 };
 
 // The safety preamble every mission's call task must start with.

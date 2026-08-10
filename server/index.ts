@@ -9,6 +9,11 @@ import {
   type CallResult
 } from "../src/domain/base.js";
 import { getTemplate } from "../src/domain/registry.js";
+import {
+  withCommitmentFields,
+  extractTranscriptTurns,
+  buildCommitmentWarning
+} from "../src/domain/commitments.js";
 import { interpretIntent } from "../src/domain/interpret.js";
 import { translateMissionFields, translateResultStrings } from "../src/domain/translate.js";
 import { llmComplete, hasLLMKey } from "../src/domain/llm.js";
@@ -362,7 +367,10 @@ app.post("/api/missions/run", async (request, reply) => {
             region: regionForCallLocale(callLocale),
             locale: callLocale
           },
-          resultSchema: template.resultSchema,
+          // Every mission carries the money-declaration fields, so the agent
+          // has to say whether it committed the caller to a charge rather than
+          // leaving silence to be read as "no".
+          resultSchema: withCommitmentFields(template.resultSchema as never),
           metadata: {
             workflow: mission.kind,
             mission_id: mission.id,
@@ -373,10 +381,25 @@ app.post("/api/missions/run", async (request, reply) => {
         { idempotencyKey, timeoutMs: 10 * 60 * 1000 }
       );
 
-      const normalized = template.normalizeResult(
-        target,
-        providerResult as unknown as Record<string, unknown>
+      const rawProviderResult = providerResult as unknown as Record<string, unknown>;
+      const normalized = template.normalizeResult(target, rawProviderResult);
+
+      // Independently of what the template made of the result, check whether
+      // this call may have committed the caller to money: the agent's own
+      // declaration, plus our own read of the transcript in case it is wrong.
+      const commitmentWarning = buildCommitmentWarning(
+        (rawProviderResult.structuredResult && typeof rawProviderResult.structuredResult === "object"
+          ? rawProviderResult.structuredResult
+          : {}) as Record<string, unknown>,
+        extractTranscriptTurns(rawProviderResult)
       );
+      if (commitmentWarning) {
+        request.log.warn(
+          { missionId: mission.id, targetId: target.id, commitmentWarning },
+          "Call may have committed the caller to a payment"
+        );
+        (normalized as CallResult<unknown>).commitmentWarning = commitmentWarning;
+      }
       // Boundary OUT: translate result strings callLocale -> userLocale (no-op
       // when equal), plus an English copy for a friend/family helper.
       const normalizedResult = normalized as CallResult<unknown> & Record<string, unknown>;

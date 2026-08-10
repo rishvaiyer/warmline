@@ -123,6 +123,13 @@ type CallResult = {
   followUpInstructions: string;
   completedAt: string;
   data: Record<string, unknown>;
+  // Only present when the call may have committed the caller to a payment.
+  commitmentWarning?: {
+    moneyCommitted: boolean;
+    detailsShared: boolean;
+    transcriptFlagged: boolean;
+    quotes: string[];
+  };
 };
 
 type RunResponse = {
@@ -1153,6 +1160,34 @@ export default function App() {
                       <div className="result-best-badge">
                         <CheckIcon />
                         {rs.bestAnswerBadge}
+                      </div>
+                    )}
+                    {result.commitmentWarning && (
+                      <div className="commitment-warning" role="alert">
+                        <strong className="commitment-warning-title">
+                          {rs.commitmentWarningTitle}
+                        </strong>
+                        {result.commitmentWarning.moneyCommitted && (
+                          <p>{rs.commitmentWarningMoney}</p>
+                        )}
+                        {result.commitmentWarning.detailsShared && (
+                          <p>{rs.commitmentWarningDetails}</p>
+                        )}
+                        {result.commitmentWarning.transcriptFlagged && (
+                          <p>{rs.commitmentWarningTranscript}</p>
+                        )}
+                        {result.commitmentWarning.quotes.length > 0 && (
+                          <>
+                            <p className="commitment-warning-quotes-label">
+                              {rs.commitmentWarningQuotesLabel}
+                            </p>
+                            <ul className="commitment-warning-quotes">
+                              {result.commitmentWarning.quotes.map((quote, i) => (
+                                <li key={i}>{quote}</li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
                       </div>
                     )}
                     <div className="result-header">
