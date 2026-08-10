@@ -27,6 +27,14 @@ export type UIStrings = {
   screen1Subtitle: string;
   intentLabel: string;
   intentPlaceholder: string;
+  speakRequestButton: string;
+  speakRequestHint: string;
+  speakRecordingButton: string;
+  speakTranscribingButton: string;
+  speakHeardLanguagePrefix: string;
+  errorMicDenied: string;
+  errorTranscribeFailed: string;
+  errorNothingHeard: string;
   detectLanguageButton: string;
   showThisPageInPrefix: string;
   detectingLanguageButton: string;
@@ -99,6 +107,14 @@ export const EN: UIStrings = {
   screen1Subtitle: "Tell us in your own words. Any language is fine.",
   intentLabel: "What you want handled",
   intentPlaceholder: 'e.g. "quiero una cita con mi dentista lo antes posible"',
+  speakRequestButton: "Say it instead",
+  speakRequestHint: "Speak in any language. We'll write it down and switch the page to match.",
+  speakRecordingButton: "Listening… tap to stop",
+  speakTranscribingButton: "Writing down what you said…",
+  speakHeardLanguagePrefix: "Heard in",
+  errorMicDenied: "We could not use your microphone. You can type your request instead.",
+  errorTranscribeFailed: "That recording could not be turned into text. Please try again, or type it instead.",
+  errorNothingHeard: "We could not hear anything. Try again a little closer to the microphone.",
   detectLanguageButton: "Show this page in my language",
   showThisPageInPrefix: "Show this page in",
   detectingLanguageButton: "Detecting your language…",

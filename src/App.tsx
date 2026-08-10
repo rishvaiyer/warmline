@@ -1,5 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { EN, type UIStrings } from "./i18n/strings.js";
+
+// Whether this browser can record at all. Needs MediaRecorder plus a secure
+// context for getUserMedia, so an http:// origin correctly reports false and
+// the microphone never renders rather than appearing and failing on tap.
+const CAN_RECORD_AUDIO =
+  typeof window !== "undefined" &&
+  typeof MediaRecorder !== "undefined" &&
+  Boolean(navigator.mediaDevices?.getUserMedia);
+
+// A container this browser will actually record in: Chrome does webm, Safari
+// does mp4. ElevenLabs Scribe accepts both, so we take the first that sticks.
+function preferredRecordingMimeType(): string {
+  for (const type of ["audio/webm", "audio/mp4", "audio/ogg"]) {
+    if (MediaRecorder.isTypeSupported(type)) return type;
+  }
+  return "";
+}
 
 type Target = {
   id: string;
@@ -242,6 +259,28 @@ function AddIcon() {
   );
 }
 
+function MicIcon() {
+  return (
+    <svg className="btn-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="5.6" y="1.6" width="4.8" height="8" rx="2.4" stroke="currentColor" strokeWidth="1.5" />
+      <path
+        d="M3.4 7.4a4.6 4.6 0 0 0 9.2 0M8 12v2.4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function StopIcon() {
+  return (
+    <svg className="btn-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="4" y="4" width="8" height="8" rx="1.6" fill="currentColor" />
+    </svg>
+  );
+}
+
 function BackIcon() {
   return (
     <svg className="btn-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -274,6 +313,25 @@ export default function App() {
   // wrote their request in, so the plan always matches the screen.
   const [localeExplicitlyChosen, setLocaleExplicitlyChosen] = useState(false);
 
+  // Voice intake. `voiceInputEnabled` mirrors whether the server has an
+  // ElevenLabs key -- until we know, the microphone stays hidden rather than
+  // flashing in and then failing on tap.
+  const [voiceInputEnabled, setVoiceInputEnabled] = useState(false);
+  const [recordingState, setRecordingState] = useState<"idle" | "recording" | "transcribing">(
+    "idle"
+  );
+  const [speechError, setSpeechError] = useState("");
+  // The language we heard them speak, shown back as a small confirmation so
+  // the page flipping under them is explained rather than surprising.
+  const [heardLocale, setHeardLocale] = useState("");
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<BlobPart[]>([]);
+  const autoStopRef = useRef<number | null>(null);
+  // Set on unmount so a recorder stopped by teardown does not try to
+  // transcribe into a component that is no longer on screen.
+  const recordingAbandonedRef = useRef(false);
+
   // Screen 2 state
   const [plan, setPlan] = useState<Plan | null>(null);
   const [running, setRunning] = useState(false);
@@ -297,6 +355,34 @@ export default function App() {
   function removeTarget(id: string) {
     setTargets((prev) => (prev.length > 1 ? prev.filter((t) => t.id !== id) : prev));
   }
+
+  // Ask the server once whether voice input is configured. A failure here just
+  // leaves the microphone hidden -- the typed flow is the baseline, always.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/health")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        if (!cancelled && body?.voiceInputEnabled) setVoiceInputEnabled(true);
+      })
+      .catch(() => {
+        // No microphone offered. Nothing else changes.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Release the microphone if the person navigates away mid-recording.
+  useEffect(() => {
+    return () => {
+      recordingAbandonedRef.current = true;
+      if (autoStopRef.current !== null) window.clearTimeout(autoStopRef.current);
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== "inactive") recorder.stop();
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
 
   // Quietly detect the language of what they're typing (debounced) so the
   // button can name it -- "Show this page in Español" -- before they click.
@@ -365,6 +451,107 @@ export default function App() {
     } catch {
       // Keep everything in its current language if localize fails.
     }
+  }
+
+  // Send the clip to ElevenLabs Scribe (through our server), drop the words
+  // into the intake box, and let the language it was spoken in drive the same
+  // auto-localize path a typed request takes. Speaking a language IS choosing
+  // it: say what you need in Gujarati and the page becomes Gujarati.
+  async function transcribeRecording(blob: Blob) {
+    if (blob.size === 0) {
+      setRecordingState("idle");
+      setSpeechError(s.errorNothingHeard);
+      return;
+    }
+
+    setRecordingState("transcribing");
+    try {
+      const response = await fetch("/api/intent/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": blob.type.split(";")[0] || "audio/webm" },
+        body: blob
+      });
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok || typeof body.text !== "string" || !body.text.trim()) {
+        setSpeechError(response.status === 422 ? s.errorNothingHeard : s.errorTranscribeFailed);
+        return;
+      }
+
+      // Append rather than overwrite, so someone can type a little, speak the
+      // rest, or record twice without losing what they already had.
+      const spoken = body.text.trim();
+      setIntentText((prev) => (prev.trim() ? `${prev.trim()} ${spoken}` : spoken));
+
+      const heard = typeof body.detectedLocale === "string" ? body.detectedLocale : "";
+      if (heard) {
+        setHeardLocale(heard);
+        setDetectedLocale(heard);
+        if (!localeExplicitlyChosen && !heard.toLowerCase().startsWith("en")) {
+          setLocalizing(true);
+          try {
+            await applyDetectedLocale(heard);
+          } finally {
+            setLocalizing(false);
+          }
+        }
+      }
+    } catch {
+      setSpeechError(s.errorTranscribeFailed);
+    } finally {
+      setRecordingState("idle");
+    }
+  }
+
+  function stopRecording() {
+    if (autoStopRef.current !== null) {
+      window.clearTimeout(autoStopRef.current);
+      autoStopRef.current = null;
+    }
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== "inactive") recorder.stop();
+    mediaRecorderRef.current = null;
+  }
+
+  // Record the person saying what they need. No language is asked for and none
+  // is sent -- Scribe detects it from the audio, which is the whole point.
+  async function startRecording() {
+    setSpeechError("");
+    setHeardLocale("");
+
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      setSpeechError(s.errorMicDenied);
+      return;
+    }
+
+    const mimeType = preferredRecordingMimeType();
+    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    mediaStreamRef.current = stream;
+    audioChunksRef.current = [];
+
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) audioChunksRef.current.push(event.data);
+    };
+
+    recorder.onstop = () => {
+      stream.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+      const chunks = audioChunksRef.current;
+      audioChunksRef.current = [];
+      if (recordingAbandonedRef.current) return;
+      void transcribeRecording(new Blob(chunks, { type: recorder.mimeType || mimeType || "audio/webm" }));
+    };
+
+    mediaRecorderRef.current = recorder;
+    recorder.start();
+    setRecordingState("recording");
+
+    // Hard stop after a minute. An intake request is a sentence or two, and a
+    // recording left running by accident should not become a huge upload.
+    autoStopRef.current = window.setTimeout(stopRecording, 60_000);
   }
 
   // Picking a language from the dropdown flips the whole page into it right
@@ -645,6 +832,37 @@ export default function App() {
                 rows={4}
               />
             </label>
+
+            {voiceInputEnabled && CAN_RECORD_AUDIO && (
+              <div className="voice-intake">
+                <button
+                  type="button"
+                  className={`secondary-button voice-button${
+                    recordingState === "recording" ? " is-recording" : ""
+                  }`}
+                  onClick={recordingState === "recording" ? stopRecording : startRecording}
+                  disabled={recordingState === "transcribing"}
+                >
+                  {recordingState === "recording" ? <StopIcon /> : <MicIcon />}
+                  {recordingState === "recording"
+                    ? s.speakRecordingButton
+                    : recordingState === "transcribing"
+                      ? s.speakTranscribingButton
+                      : s.speakRequestButton}
+                </button>
+                <p className="voice-hint" role="status" aria-live="polite">
+                  {heardLocale && languageEndonym(heardLocale)
+                    ? `${s.speakHeardLanguagePrefix} ${languageEndonym(heardLocale)}`
+                    : s.speakRequestHint}
+                </p>
+              </div>
+            )}
+
+            {speechError && (
+              <p className="error" role="alert">
+                {speechError}
+              </p>
+            )}
 
             <button
               type="button"

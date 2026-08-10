@@ -608,6 +608,56 @@ body {
   cursor: not-allowed;
 }
 
+/* Voice intake: say your request instead of typing it. Sits directly under
+   the intake box, deliberately quieter than the primary action -- speaking is
+   an alternative to typing, never the expected path. */
+.voice-intake {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-top: 0.6rem;
+}
+
+.voice-button {
+  align-self: flex-start;
+  font-size: 0.85rem;
+  padding: 0.55rem 1rem;
+  border-radius: var(--radius-pill);
+}
+
+.voice-button:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+.voice-button.is-recording {
+  border-color: var(--amber);
+  background: var(--amber-soft);
+  color: var(--amber);
+}
+
+/* A slow pulse while the microphone is live, so "we are listening" is visible
+   without sound and without reading the label. */
+.voice-button.is-recording .btn-icon {
+  animation: voice-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes voice-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.voice-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
 .results-lang-toggle {
   align-self: flex-start;
   margin: 0 0 1rem;

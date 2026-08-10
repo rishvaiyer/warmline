@@ -12,8 +12,24 @@ import { getTemplate } from "../src/domain/registry.js";
 import { interpretIntent } from "../src/domain/interpret.js";
 import { translateMissionFields, translateResultStrings } from "../src/domain/translate.js";
 import { llmComplete, hasLLMKey } from "../src/domain/llm.js";
+import {
+  hasSpeechKey,
+  speechProvider,
+  transcribeSpeech,
+  SpeechUnavailableError,
+  MAX_AUDIO_BYTES
+} from "../src/domain/speech.js";
 
 const app = Fastify({ logger: true, bodyLimit: 64 * 1024 });
+
+// Spoken requests arrive as a raw audio body rather than JSON, so they need
+// their own parser and their own (much larger) limit -- the 64KB global cap
+// above is right for text and would reject a few seconds of speech.
+app.addContentTypeParser(
+  ["audio/webm", "audio/ogg", "audio/mp4", "audio/mpeg", "audio/wav", "audio/x-wav", "audio/flac"],
+  { parseAs: "buffer", bodyLimit: MAX_AUDIO_BYTES },
+  (_request, body, done) => done(null, body)
+);
 const port = Number(process.env.PORT || 8787);
 const calleRegion = process.env.CALLE_REGION || "US";
 // Canonical English tag used as the "friend/family can read it too" copy of
@@ -88,8 +104,53 @@ app.get("/api/health", async () => ({
   ok: true,
   mode: realCallsEnabled ? "real" : "mock",
   realCallsConfigured: realCallsEnabled,
-  realCallProtection: realCallsEnabled ? "approval_and_disclosure" : "disabled"
+  realCallProtection: realCallsEnabled ? "approval_and_disclosure" : "disabled",
+  // Drives whether the client offers the microphone at all. Without a speech
+  // key of any kind the intake screen stays exactly as it was: typed only.
+  voiceInputEnabled: hasSpeechKey(),
+  // Which provider answered that: "elevenlabs", "openai", or null. Reported so
+  // a deploy can be checked without reading logs or exposing a key.
+  voiceInputProvider: speechProvider()
 }));
+
+// Someone says what they need out loud, in any language, and we hand back the
+// words plus the language they said them in. That language then drives the
+// same auto-localize path a typed request does, so speaking your request
+// flips the interface into your language just like typing it does.
+//
+// The body is the raw recording from the browser's MediaRecorder; see the
+// content-type parser above. Never on the critical path -- the microphone is
+// hidden when this is unconfigured, and a failure leaves the textarea alone.
+app.post("/api/intent/transcribe", async (request, reply) => {
+  if (!hasSpeechKey()) {
+    return reply.code(503).send({ error: "Voice input is not configured on this server." });
+  }
+
+  const audio = request.body;
+  if (!Buffer.isBuffer(audio) || audio.byteLength === 0) {
+    return reply.code(400).send({ error: "No audio was received." });
+  }
+
+  const mimeType = (request.headers["content-type"] ?? "audio/webm").split(";")[0].trim();
+
+  try {
+    const { text, languageCode, languageProbability } = await transcribeSpeech({ audio, mimeType });
+    if (!text) {
+      return reply.code(422).send({ error: "Nothing could be heard in that recording." });
+    }
+    // Only trust the detected language when Scribe is reasonably sure. A low
+    // score on a short clip would otherwise flip the whole interface into a
+    // language the person does not read.
+    const detectedLocale = languageProbability >= 0.5 ? languageCode : "";
+    return { text, detectedLocale, languageProbability };
+  } catch (error) {
+    request.log.error(error, "ElevenLabs transcription failed");
+    if (error instanceof SpeechUnavailableError) {
+      return reply.code(503).send({ error: "Voice input is not available right now." });
+    }
+    return reply.code(502).send({ error: "That recording could not be transcribed." });
+  }
+});
 
 app.post("/api/intent/interpret", async (request, reply) => {
   const body = request.body as { text?: unknown; userLocale?: unknown } | undefined;
