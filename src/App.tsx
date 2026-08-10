@@ -327,8 +327,15 @@ export default function App() {
   const [intentText, setIntentText] = useState("");
   const [userLocale, setUserLocale] = useState("en-US");
   const [callLocale, setCallLocale] = useState("");
+  // Who an appointment gets booked under. Blank is a real choice, not an
+  // oversight: with no name the agent is told not to book at all and to report
+  // availability instead, so leaving this empty is the read-only mode.
+  const [callerName, setCallerName] = useState("");
   const [targets, setTargets] = useState<Target[]>([emptyTarget()]);
   const [disclosureAccepted, setDisclosureAccepted] = useState(false);
+  // Opt-in, and deliberately separate from the AI disclosure above: agreeing to
+  // be called by an AI is not the same as agreeing to be booked by one.
+  const [bookingConsent, setBookingConsent] = useState(false);
   const [interpretError, setInterpretError] = useState("");
   const [interpreting, setInterpreting] = useState(false);
   const [localizing, setLocalizing] = useState(false);
@@ -687,6 +694,12 @@ export default function App() {
       setInterpretError(s.errorDisclosureRequired);
       return;
     }
+    // Consent to book with nobody to book under would silently degrade to
+    // "ask only", which is not what the person just ticked. Say so instead.
+    if (bookingConsent && callerName.trim().length < 2) {
+      setInterpretError(s.errorBookingNeedsName);
+      return;
+    }
 
     setInterpreting(true);
     try {
@@ -752,6 +765,8 @@ export default function App() {
       userLocale,
       callLocale: callLocale || undefined,
       disclosureAccepted: true,
+      bookingConsent,
+      callerName: callerName.trim() || undefined,
       targets: targets.map((t) => ({
         id: t.id,
         venueName: t.venueName,
@@ -786,6 +801,8 @@ export default function App() {
     setIntentText("");
     setTargets([emptyTarget()]);
     setDisclosureAccepted(false);
+    // Consent never carries over to a new request.
+    setBookingConsent(false);
     setPlan(null);
     setRunResult(null);
     setRunError("");
@@ -937,6 +954,18 @@ export default function App() {
                   : s.detectLanguageButton}
             </button>
 
+            <label className="field">
+              <span className="field-label">{s.callerNameLabel}</span>
+              <input
+                type="text"
+                value={callerName}
+                onChange={(e) => setCallerName(e.target.value)}
+                placeholder={s.callerNamePlaceholder}
+                autoComplete="name"
+              />
+              <span className="field-hint">{s.callerNameHint}</span>
+            </label>
+
             <div className="field-row">
               <label className="field">
                 <span className="field-label">{s.yourLanguageLabel}</span>
@@ -1018,6 +1047,19 @@ export default function App() {
               <span>{s.disclosureText}</span>
             </label>
 
+            <label className="reassurance-note checkbox-field consent-field">
+              <input
+                type="checkbox"
+                checked={bookingConsent}
+                onChange={(e) => setBookingConsent(e.target.checked)}
+              />
+              <CheckIcon />
+              <span>
+                {s.bookingConsentText}
+                <span className="field-hint">{s.bookingConsentHint}</span>
+              </span>
+            </label>
+
             {interpretError && (
               <p className="error" role="alert">
                 {interpretError}
@@ -1050,9 +1092,15 @@ export default function App() {
               <p className="plan-disclosure">&ldquo;{plan.disclosureLine}&rdquo;</p>
             </div>
 
+            {/* Say which of the two modes this call is actually running in,
+                on the last screen before it dials. */}
             <div className="reassurance-note">
               <CheckIcon />
-              <span>{s.planReassurance}</span>
+              <span>
+                {bookingConsent && callerName.trim()
+                  ? s.planReassurance
+                  : s.planReassuranceNoBooking}
+              </span>
             </div>
 
             {runError && (

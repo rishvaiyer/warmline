@@ -44,6 +44,9 @@ export type UIStrings = {
   yourLanguageLabel: string;
   callLanguageLabel: string;
   callLanguageSameOption: string;
+  callerNameLabel: string;
+  callerNamePlaceholder: string;
+  callerNameHint: string;
   targetsTitle: string;
   businessNameLabel: string;
   businessNamePlaceholder: string;
@@ -52,6 +55,9 @@ export type UIStrings = {
   removeButton: string;
   addAnotherButton: string;
   disclosureText: string;
+  bookingConsentText: string;
+  bookingConsentHint: string;
+  errorBookingNeedsName: string;
   errorIntentTooShort: string;
   errorTargetsIncomplete: string;
   errorDisclosureRequired: string;
@@ -67,6 +73,7 @@ export type UIStrings = {
   planAskLabel: string;
   planSayLabel: string;
   planReassurance: string;
+  planReassuranceNoBooking: string;
   errorRunFailed: string;
   backButton: string;
   preparingCallButton: string;
@@ -125,6 +132,10 @@ export const EN: UIStrings = {
   yourLanguageLabel: "Your language",
   callLanguageLabel: "Call in a different language (optional)",
   callLanguageSameOption: "Same as my language",
+  callerNameLabel: "Your name (optional)",
+  callerNamePlaceholder: "Maria Ruiz",
+  callerNameHint:
+    "Only needed if you want Warmline to book for you. Leave it blank and it will just ask, and report back what is available.",
   targetsTitle: "Who should we call?",
   businessNameLabel: "Business name",
   businessNamePlaceholder: "Dr. Smith Dental",
@@ -133,7 +144,12 @@ export const EN: UIStrings = {
   removeButton: "Remove",
   addAnotherButton: "Add another business",
   disclosureText:
-    "I understand an AI assistant will call on my behalf, disclose itself as an AI, and will not book, pay, or commit to anything without my review.",
+    "I understand an AI assistant will call on my behalf and will say it is an AI. It will never pay, give card details, or agree to a fee.",
+  bookingConsentText:
+    "I give consent for Warmline to book an appointment for me, in my name, within the times I approve on the next screen.",
+  bookingConsentHint:
+    "Leave this unticked and Warmline will only ask and report back, without booking anything.",
+  errorBookingNeedsName: "Add your name above so we know who to book the appointment under.",
   errorIntentTooShort: "Say a bit more about what you need.",
   errorTargetsIncomplete: "Every target needs a name and a phone number in E.164 format (e.g. +12025550123).",
   errorDisclosureRequired: "Please confirm you understand this will place a call on your behalf.",
@@ -147,7 +163,10 @@ export const EN: UIStrings = {
   planCallLabel: "We'll call",
   planAskLabel: "And ask",
   planSayLabel: "We'll say, first thing",
-  planReassurance: "We won't book, pay, or commit to anything on this call. Only you can approve that.",
+  planReassurance:
+    "You have agreed Warmline can book one appointment inside the times above, in your name. It will never pay, give card details, or agree to a deposit or fee. If money is needed, it stops and tells you.",
+  planReassuranceNoBooking:
+    "Warmline will only ask and report back. It will not book, pay, or commit to anything on this call.",
   errorRunFailed: "The mission could not run.",
   backButton: "Back",
   preparingCallButton: "Preparing the call…",
@@ -158,7 +177,8 @@ export const EN: UIStrings = {
   bestAnswerBadge: "Best answer",
   confidenceLabel: "Confidence:",
   followUpLabel: "Follow-up:",
-  resultsReassurance: "Nothing was booked or paid for. Review the details above before you act on them.",
+  resultsReassurance:
+    "Nothing was paid for. If an appointment was booked, the details are above -- check them, and cancel with the business directly if they are wrong.",
   startOverButton: "Start over",
   callbackTitle: "Prefer to hear it?",
   callbackSubtitle: "Warmline can call you and read these results out loud, in your language.",

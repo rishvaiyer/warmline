@@ -14,7 +14,7 @@ anyone for any reason" honest.
 
 **Why FoundLine already gets us most of the way:** the hard part is built. E.164 validation, server
 allowlist, max-5 targets, idempotency, mock/real switch, the CALL-E adapter, and the "AI discloses
-itself, never commits" safety model. Lost & Found becomes the first template; new errands are new
+itself, never spends money" safety model. Lost & Found becomes the first template; new errands are new
 templates, not new plumbing.
 
 ---
@@ -108,7 +108,7 @@ export interface MissionTemplate<TInput, TData> {
 | Extraction schema (`calleResultSchema`) | lost-item fields | **per template** `resultSchema` |
 | Outcome enum (`outcomeValues`) | one lost-item list | **per template** `outcomes` |
 | `normalizeResult`, mock, ranking | lost-item only | **per template** |
-| Safety base (AI disclosure, no payment/pickup/impersonation, no commitment) | inline in `buildCallTask` | **shared** helper injected into every template's task |
+| Safety base (AI disclosure, no payment/pickup/impersonation) | inline in `buildCallTask` | **shared** helper injected into every template's task |
 | `assertSafeDescription` (private-proof leak check) | shared | **lost-item guard only** |
 
 ---
@@ -182,7 +182,7 @@ Files under `src/domain/missions/`. Each is ~40 lines.
 - **intake:** `service` (e.g. "dentist cleaning"), `earliestAcceptable` + `latestAcceptable` (date window),
   `partySize?`, `notes?`.
 - **call goal:** ask for the **earliest availability** for the service within the window. **Explicitly:
-  do not book or hold anything**, only report what is offered.
+  book only with explicit consent + a caller name**, and only inside the approved range.
 - **resultSchema:**
   ```json
   { "outcome": "enum", "earliest_slot": "string",
@@ -360,13 +360,17 @@ Everything else in the file (health, static serving, allowlist, idempotency) is 
   impersonating the user; harassment, deception, or pressure; bulk/spam outreach; evading do-not-call;
   sensitive or regulated pretexting (medical, legal, financial account access); and, in the MVP,
   calling **individuals** rather than user-selected **businesses**.
-- **Base guarantees (every mission):** discloses it is an AI; makes no commitment on the user's behalf;
-  honors do-not-call; server allowlist + E.164 + max 5 targets + idempotency.
+- **Base guarantees (every mission):** discloses it is an AI; never pays, offers to pay, hands over
+  card or account details, or accepts a deposit, prepayment, or fee, and stops and reports if money
+  is required; honors do-not-call; server allowlist + E.164 + max 5 targets + idempotency.
+  Committing the user's **time** is possible but always opt-in per mission; committing their
+  **money** never is.
 - **Lost & Found guard:** `assertSafeDescription` keeps private proof out of the call.
-- **Appointment Scout:** reports availability only; **never books** (the user books after reviewing).
+- **Appointment:** books at most one slot inside the approved range, and only when the user
+  ticked booking consent and gave a name. Otherwise reports availability only.
 - **Reachability:** information only; no negotiation.
 
-Everything is read-only toward the outside world: it asks and reports, it never commits. That
+Money is the hard line: it may commit the user's time, never their money. That
 consistency is the pitch, not a limitation, and it is what lets the product help anxious and
 multilingual users trust it with anything on the permitted list.
 

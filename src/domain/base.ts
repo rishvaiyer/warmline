@@ -17,6 +17,18 @@ export const baseMissionSchema = z.object({
   userLocale: z.string().default("en-US"),
   callLocale: z.string().optional(),
   disclosureAccepted: z.literal(true),
+  // Booking is opt-in and requires BOTH of the next two. bookingConsent is the
+  // person ticking "yes, book for me"; callerName is who it gets booked under.
+  // Either one missing means the agent is told to ask and report, never commit.
+  // Two separate signals on purpose: a name typed for some other reason must
+  // never by itself amount to permission to bind someone to an appointment.
+  bookingConsent: z.boolean().optional(),
+  callerName: z.string().trim().min(2).max(80).optional(),
+  // Optional number for the venue to confirm to. Never used to call the caller.
+  callbackNumber: z
+    .string()
+    .regex(/^\+[1-9]\d{7,14}$/, "Use E.164 format, such as +12025550123")
+    .optional(),
   targets: z.array(targetSchema).min(1).max(5)
 });
 
@@ -37,13 +49,26 @@ export type CallResult<TData = unknown> = {
 };
 
 // The safety preamble every mission's call task must start with.
+//
+// Money is the hard line, and it is a different thing from time. Holding a slot
+// commits the caller's calendar, which they authorize explicitly on the review
+// screen before the call is placed. Spending their money is never authorized,
+// and the agent is given no payment details with which to spend it -- so if a
+// booking cannot proceed without a card or a deposit, the correct move is to
+// stop and report, not to improvise.
 export function baseCallPreamble(mission: BaseMission, target: TargetInput): string[] {
   return [
     `Call ${target.venueName} at ${target.phoneE164}.`,
     "At the start, clearly say you are an AI assistant calling on someone's behalf.",
-    "Do not impersonate the caller. Do not make payments, bookings, purchases, or any commitment.",
+    "Do not impersonate the caller: you are their assistant, not them.",
+    mission.callerName ? `You are calling on behalf of ${mission.callerName}.` : "",
+    mission.callbackNumber
+      ? `If a contact number is needed, give ${mission.callbackNumber}.`
+      : "",
+    "Never pay, offer to pay, or read out card, bank, or account details -- you have none. Never agree to a deposit, prepayment, cancellation fee, or any other charge.",
+    "If money is required to go ahead, stop there, commit to nothing, and report exactly what is required so the caller can decide for themselves.",
     "If the venue asks not to receive automated calls, apologize, end the call, and record the refusal."
-  ];
+  ].filter(Boolean);
 }
 
 export function parseAllowedPhoneNumbers(value: string | undefined): Set<string> {

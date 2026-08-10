@@ -37,8 +37,9 @@ Warmline turns a sentence into a finished phone call.
    switcher in the top-right at any time, so someone who cannot read the English
    form can switch first and fill it in after.
 2. **You review a plan.** Warmline interprets your request into a concrete call
-   goal (for example, "ask for the earliest appointment; do not book anything")
-   and shows it to you. Nothing dials until you approve.
+   goal (for example, "book the earliest appointment between Monday and Friday")
+   and shows it to you. Nothing dials until you approve, and Warmline only books
+   if you explicitly consent and give a name to book under.
 3. **CALL-E places the call, in the right language.** Its voice agent has the
    conversation, discloses itself as an AI, and returns a structured result.
 4. **You get the answer in writing.** Results come back in your language and in
@@ -59,7 +60,9 @@ the user approves, Warmline calls `CalleClient.calls.createAndWait(...)` from th
 
 - **`task`**: the per-mission call goal Warmline generated from the user's
   intent, always prefixed with a spoken AI-disclosure line and a hard rule that
-  the agent must not book, pay, or commit to anything.
+  the agent must never pay, hand over card details, or accept any charge.
+  Booking a time is allowed only with the caller's explicit consent, and only
+  inside the time range they approved.
 - **`recipient`**: the business phone in E.164, plus a **`locale`** and a
   **`region`**. This is the key to multilingual calling. CALL-E ties the language
   its agent *speaks* to the recipient region (Spanish under `MX`, Hindi under

@@ -40,7 +40,7 @@ const SYSTEM_PROMPT = `You turn a person's free-text request (in any language) i
 
 Known mission kinds and their expected fields:
 - lost_and_found: itemType, safeDescription, privateProof, lostWindow, lastSeen. Never put serial numbers, passcodes, account numbers, or other private ownership proof in safeDescription -- that belongs in privateProof only, and it must never be spoken on the call.
-- appointment_scout: service, earliestAcceptable, latestAcceptable, partySize (optional number), notes (optional).
+- appointment_scout: service, earliestAcceptable, latestAcceptable, partySize (optional number), notes (optional). Use this whether the person wants an appointment booked or only wants to know what is available; whether it books is decided by consent the person gives in the interface, not by you.
 - reachability: mode ("open_now" | "price" | "stock" | "general"), subject, question.
 - generic: callGoal. Use this kind for anything that does not clearly fit the others.
 

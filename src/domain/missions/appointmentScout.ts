@@ -3,7 +3,9 @@ import { baseCallPreamble, type BaseMission, type CallResult, type TargetInput }
 import type { MissionTemplate } from "../template.js";
 
 export const outcomeValues = [
+  "booked",
   "slots_offered",
+  "payment_required",
   "none_available",
   "callback_required",
   "voicemail",
@@ -20,14 +22,33 @@ const intakeSchema = z.object({
 });
 
 type Intake = z.infer<typeof intakeSchema>;
-type Data = { earliest: string; slots: string[] };
+type Data = {
+  booked: string;
+  confirmation: string;
+  cancellationPolicy: string;
+  earliest: string;
+  slots: string[];
+};
 
 const resultSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["outcome", "earliest_slot", "slots", "notes"],
+  required: [
+    "outcome",
+    "booked_slot",
+    "confirmation_reference",
+    "cancellation_policy",
+    "earliest_slot",
+    "slots",
+    "notes"
+  ],
   properties: {
     outcome: { type: "string", enum: [...outcomeValues] },
+    // What was actually committed to, empty unless outcome is "booked".
+    booked_slot: { type: "string" },
+    confirmation_reference: { type: "string" },
+    // Captured verbatim where given: the caller is bound by it and never heard it.
+    cancellation_policy: { type: "string" },
     earliest_slot: { type: "string" },
     slots: { type: "array", items: { type: "string" }, maxItems: 5 },
     notes: { type: "string" }
@@ -35,13 +56,31 @@ const resultSchema = {
 } as const;
 
 function buildCallTask(mission: Intake & BaseMission, target: TargetInput): string {
+  // Booking requires explicit consent AND a name to book under. Missing either
+  // falls back to the older, strictly read-only behavior rather than
+  // improvising: an appointment held under nobody is worse than no
+  // appointment, and a name alone is not permission.
+  const canBook = Boolean(mission.bookingConsent && mission.callerName);
+
+  const bookingInstructions = canBook
+    ? [
+        `Book the earliest appointment that falls between ${mission.earliestAcceptable} and ${mission.latestAcceptable}. You are authorized to hold and confirm exactly one appointment in that range, and nothing outside it.`,
+        "If the only times offered fall outside that range, do not book. Report what was offered instead.",
+        "Once it is booked, read the date, time, and name back to the receptionist to confirm you have them right.",
+        "Ask for a confirmation number or reference if there is one, and ask what the cancellation policy is. Record both.",
+        "Book one appointment only. Never hold multiple slots as a backup."
+      ]
+    : [
+        "Do not book, hold, or confirm anything: the caller has not authorized a booking. Only report what is offered so the caller can book it themselves.",
+        "List up to five available slots if offered, and note which one is earliest."
+      ];
+
   return [
     ...baseCallPreamble(mission, target),
-    `Ask for the earliest available appointment for ${mission.service}, between ${mission.earliestAcceptable} and ${mission.latestAcceptable}.`,
+    `The caller wants an appointment for ${mission.service}, between ${mission.earliestAcceptable} and ${mission.latestAcceptable}.`,
     mission.partySize ? `The appointment is for ${mission.partySize} people.` : "",
     mission.notes ? `Additional context: ${mission.notes}.` : "",
-    "Do not book, hold, or confirm any appointment. Only report what is offered so the caller can book it themselves.",
-    "List up to five available slots if offered, and note which one is earliest."
+    ...bookingInstructions
   ]
     .filter(Boolean)
     .join(" ");
@@ -69,10 +108,20 @@ function normalizeResult(target: TargetInput, provider: Record<string, unknown>)
     outcome,
     confidence: confidenceLabel === "high" || confidenceLabel === "medium" ? confidenceLabel : "low",
     evidence: Array.isArray(provider.evidence) ? provider.evidence.map(String).slice(0, 5) : [],
-    followUpRequired: outcome === "callback_required" || outcome === "voicemail",
+    // Anything short of a confirmed booking leaves work with the caller, so it
+    // is flagged for follow-up -- including slots_offered, which used to be the
+    // success case and is now the "you still have to book this" case.
+    followUpRequired:
+      outcome === "callback_required" ||
+      outcome === "voicemail" ||
+      outcome === "payment_required" ||
+      outcome === "slots_offered",
     followUpInstructions: String(structured.notes ?? ""),
     completedAt: new Date().toISOString(),
     data: {
+      booked: String(structured.booked_slot ?? ""),
+      confirmation: String(structured.confirmation_reference ?? ""),
+      cancellationPolicy: String(structured.cancellation_policy ?? ""),
       earliest: String(structured.earliest_slot ?? ""),
       slots: Array.isArray(structured.slots) ? structured.slots.map(String).slice(0, 5) : []
     }
@@ -84,11 +133,17 @@ function parseSlotDate(value: string): number {
   return Number.isNaN(parsed) ? Number.POSITIVE_INFINITY : parsed;
 }
 
+// A confirmed booking beats an offer of times, which beats everything else.
+const OUTCOME_PRIORITY: Record<string, number> = { booked: 0, slots_offered: 1 };
+
 function rank(results: CallResult<Data>[]): CallResult<Data>[] {
   return [...results].sort((a, b) => {
-    if (a.outcome === "slots_offered" && b.outcome !== "slots_offered") return -1;
-    if (b.outcome === "slots_offered" && a.outcome !== "slots_offered") return 1;
-    return parseSlotDate(a.data.earliest) - parseSlotDate(b.data.earliest);
+    const priority = (OUTCOME_PRIORITY[a.outcome] ?? 2) - (OUTCOME_PRIORITY[b.outcome] ?? 2);
+    if (priority !== 0) return priority;
+    return (
+      parseSlotDate(a.data.booked || a.data.earliest) -
+      parseSlotDate(b.data.booked || b.data.earliest)
+    );
   });
 }
 
@@ -99,24 +154,41 @@ function mockResult(mission: Intake & BaseMission, targetIndex: number): CallRes
   const earliest = baseDay.toISOString().slice(0, 16).replace("T", " ") + " AM";
   const slots = [earliest, `${baseDay.toISOString().slice(0, 10)} 2:30 PM`];
 
+  // Mirror the real branch: consent plus a name books, anything less reports.
+  const booked = Boolean(mission.bookingConsent && mission.callerName);
+
   return {
     targetId: target.id,
     venueName: target.venueName,
     status: "completed",
-    outcome: "slots_offered",
+    outcome: booked ? "booked" : "slots_offered",
     confidence: "high",
-    evidence: [`Front desk offered ${slots.length} openings for ${mission.service}.`],
-    followUpRequired: false,
-    followUpInstructions: "Call back to confirm and book the slot that works for you.",
+    evidence: [
+      booked
+        ? `Front desk confirmed ${earliest} for ${mission.service} under ${mission.callerName}.`
+        : `Front desk offered ${slots.length} openings for ${mission.service}.`
+    ],
+    followUpRequired: !booked,
+    followUpInstructions: booked
+      ? ""
+      : "Call back to confirm and book the slot that works for you.",
     completedAt: new Date(Date.now() + targetIndex * 1000).toISOString(),
-    data: { earliest, slots }
+    data: {
+      booked: booked ? earliest : "",
+      confirmation: booked ? "MOCK-4821" : "",
+      cancellationPolicy: booked ? "Free to cancel up to 24 hours before." : "",
+      earliest,
+      slots
+    }
   };
 }
 
 export const appointmentScout: MissionTemplate<Intake, Data> = {
+  // `kind` is the wire value the interpreter classifies into and the client
+  // sends back, so it stays put even though the template now books.
   kind: "appointment_scout",
-  label: "Appointment Scout",
-  blurb: "Ask for the earliest appointment, without booking anything.",
+  label: "Appointment",
+  blurb: "Book the earliest appointment in a time range you approve.",
   intakeSchema,
   resultSchema,
   outcomes: outcomeValues,
@@ -124,6 +196,9 @@ export const appointmentScout: MissionTemplate<Intake, Data> = {
   normalizeResult,
   rank,
   resultColumns: [
+    { key: "booked", label: "Booked for" },
+    { key: "confirmation", label: "Confirmation" },
+    { key: "cancellationPolicy", label: "Cancellation policy" },
     { key: "earliest", label: "Earliest slot" },
     { key: "slots", label: "All slots offered" }
   ],

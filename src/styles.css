@@ -788,6 +788,29 @@ body {
   cursor: pointer;
 }
 
+/* The booking-consent tick. Warmer than the AI disclosure above it so the two
+   read as separate decisions rather than one long block of fine print. */
+.consent-field {
+  background: var(--amber-soft);
+  border-color: #e8c9ac;
+  color: #7a4620;
+}
+
+:root[data-theme="dark"] .consent-field {
+  border-color: #4a3a28;
+  color: #e8c0a0;
+}
+
+/* Quiet helper text under a field or a consent line. */
+.field-hint {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .checkbox-field input {
   margin: 0.15rem 0 0;
   width: 18px;

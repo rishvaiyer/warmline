@@ -100,8 +100,8 @@ Warmline calls `CalleClient.calls.createAndWait(...)` from the `@call-e/calle`
 SDK, passing:
 
 - **`task`** — the per-mission call goal Warmline generated from the user's intent
-  (e.g. "ask for the earliest appointment; do not book anything"), always prefixed
-  with a spoken AI-disclosure line.
+  (e.g. "book the earliest appointment between Monday and Friday"), always prefixed
+  with a spoken AI-disclosure line and a hard rule against spending any money.
 - **`recipient`** — the business phone in E.164, plus a **`locale`** (the
   `callLocale`) and a **`region`** so the call can happen in a different language
   than the person's own interface. CALL-E ties the language its agent *speaks* to
@@ -118,7 +118,14 @@ SDK, passing:
 - ✅ **Approval-first review** — you confirm the plan before anything dials.
 - ✅ **Spoken AI disclosure** — the agent always says it is an AI.
 - ✅ **Server-side allowlist** (`CALLE_ALLOWED_NUMBERS`) and **E.164 validation**.
-- ✅ **Never books, pays, or commits** anything on your behalf.
+- ✅ **Never spends your money.** The agent has no card or account details and is
+  instructed never to pay, promise to pay, or accept a deposit, prepayment, or
+  cancellation fee. If money is required to proceed, it stops, commits to
+  nothing, and reports back what was asked for.
+- ✅ **Booking is opt-in and bounded.** Warmline books an appointment only if you
+  tick the booking-consent box *and* give a name to book under. It may hold
+  exactly one appointment, only inside the time range you approved. Leave the box
+  unticked and it just asks and reports, committing to nothing.
 - ✅ **Idempotency keys** per call and a **max of 5 targets**.
 - ✅ **Off by default** — real calls run only when `ALLOW_REAL_CALLS=true`,
   `CALLE_API_KEY` is set, and the number is allowlisted. Otherwise Warmline uses a
