@@ -57,7 +57,7 @@ export type UIStrings = {
   disclosureText: string;
   bookingConsentText: string;
   bookingConsentHint: string;
-  errorBookingNeedsName: string;
+  errorCallerNameRequired: string;
   errorIntentTooShort: string;
   errorTargetsIncomplete: string;
   errorDisclosureRequired: string;
@@ -137,10 +137,10 @@ export const EN: UIStrings = {
   yourLanguageLabel: "Your language",
   callLanguageLabel: "Call in a different language (optional)",
   callLanguageSameOption: "Same as my language",
-  callerNameLabel: "Your name (optional)",
+  callerNameLabel: "Your name",
   callerNamePlaceholder: "Maria Ruiz",
   callerNameHint:
-    "Only needed if you want Warmline to book for you. Leave it blank and it will just ask, and report back what is available.",
+    "Warmline says who it is calling for. It never claims to be you.",
   targetsTitle: "Who should we call?",
   businessNameLabel: "Business name",
   businessNamePlaceholder: "Dr. Smith Dental",
@@ -154,7 +154,7 @@ export const EN: UIStrings = {
     "I give consent for Warmline to book an appointment for me, in my name, within the times I approve on the next screen.",
   bookingConsentHint:
     "Leave this unticked and Warmline will only ask and report back, without booking anything.",
-  errorBookingNeedsName: "Add your name above so we know who to book the appointment under.",
+  errorCallerNameRequired: "Please add your name, so we can say who the call is for.",
   errorIntentTooShort: "Say a bit more about what you need.",
   errorTargetsIncomplete: "Every target needs a name and a phone number in E.164 format (e.g. +12025550123).",
   errorDisclosureRequired: "Please confirm you understand this will place a call on your behalf.",

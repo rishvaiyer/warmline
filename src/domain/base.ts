@@ -18,13 +18,14 @@ export const baseMissionSchema = z.object({
   userLocale: z.string().default("en-US"),
   callLocale: z.string().optional(),
   disclosureAccepted: z.literal(true),
-  // Booking is opt-in and requires BOTH of the next two. bookingConsent is the
-  // person ticking "yes, book for me"; callerName is who it gets booked under.
-  // Either one missing means the agent is told to ask and report, never commit.
-  // Two separate signals on purpose: a name typed for some other reason must
-  // never by itself amount to permission to bind someone to an appointment.
+  // Who the call is for. Required: the agent opens by saying whose behalf it is
+  // calling on, and "an automated assistant is calling for somebody" is not a
+  // thing a receptionist can act on. It is also who a booking goes under.
+  callerName: z.string().trim().min(2).max(80),
+  // Booking stays opt-in and separate. A name is now always present, so consent
+  // is the deciding signal -- but appointmentScout still checks both, so a
+  // future caller-name change cannot silently turn booking on.
   bookingConsent: z.boolean().optional(),
-  callerName: z.string().trim().min(2).max(80).optional(),
   // Optional number for the venue to confirm to. Never used to call the caller.
   callbackNumber: z
     .string()
@@ -67,7 +68,7 @@ export function baseCallPreamble(mission: BaseMission, target: TargetInput): str
     `Call ${target.venueName} at ${target.phoneE164}.`,
     "At the start, clearly say you are an AI assistant calling on someone's behalf.",
     "Do not impersonate the caller: you are their assistant, not them.",
-    mission.callerName ? `You are calling on behalf of ${mission.callerName}.` : "",
+    `You are calling on behalf of ${mission.callerName}.`,
     mission.callbackNumber
       ? `If a contact number is needed, give ${mission.callbackNumber}.`
       : "",

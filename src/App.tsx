@@ -693,18 +693,16 @@ export default function App() {
       setInterpretError(s.errorIntentTooShort);
       return;
     }
+    if (callerName.trim().length < 2) {
+      setInterpretError(s.errorCallerNameRequired);
+      return;
+    }
     if (targets.some((t) => !t.venueName.trim() || !t.phoneE164.trim())) {
       setInterpretError(s.errorTargetsIncomplete);
       return;
     }
     if (!disclosureAccepted) {
       setInterpretError(s.errorDisclosureRequired);
-      return;
-    }
-    // Consent to book with nobody to book under would silently degrade to
-    // "ask only", which is not what the person just ticked. Say so instead.
-    if (bookingConsent && callerName.trim().length < 2) {
-      setInterpretError(s.errorBookingNeedsName);
       return;
     }
 
@@ -773,7 +771,7 @@ export default function App() {
       callLocale: callLocale || undefined,
       disclosureAccepted: true,
       bookingConsent,
-      callerName: callerName.trim() || undefined,
+      callerName: callerName.trim(),
       targets: targets.map((t) => ({
         id: t.id,
         venueName: t.venueName,
