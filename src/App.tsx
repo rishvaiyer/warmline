@@ -259,6 +259,33 @@ function AddIcon() {
   );
 }
 
+function SunIcon() {
+  return (
+    <svg className="theme-toggle-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2" stroke="currentColor" strokeWidth="1.6" />
+      <path
+        d="M12 2.8v2.4M12 18.8v2.4M4.5 4.5l1.7 1.7M17.8 17.8l1.7 1.7M2.8 12h2.4M18.8 12h2.4M4.5 19.5l1.7-1.7M17.8 6.2l1.7-1.7"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg className="theme-toggle-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M20 14.2A8.2 8.2 0 0 1 9.8 4a8.2 8.2 0 1 0 10.2 10.2Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function MicIcon() {
   return (
     <svg className="btn-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -312,6 +339,31 @@ export default function App() {
   // or the detect button). When false, interpreting follows the language they
   // wrote their request in, so the plan always matches the screen.
   const [localeExplicitlyChosen, setLocaleExplicitlyChosen] = useState(false);
+
+  // Warmline opens cream for everyone. Dark is a deliberate choice, remembered
+  // across visits and pre-applied in index.html so the page never flashes.
+  const [theme, setTheme] = useState<"light" | "dark">(() =>
+    typeof document !== "undefined" && document.documentElement.dataset.theme === "dark"
+      ? "dark"
+      : "light"
+  );
+
+  function toggleTheme() {
+    setTheme((previous) => {
+      const next = previous === "dark" ? "light" : "dark";
+      if (next === "dark") {
+        document.documentElement.dataset.theme = "dark";
+      } else {
+        delete document.documentElement.dataset.theme;
+      }
+      try {
+        localStorage.setItem("warmline-theme", next);
+      } catch {
+        // Storage blocked (private mode). The choice still applies this visit.
+      }
+      return next;
+    });
+  }
 
   // Voice intake. `voiceInputEnabled` mirrors whether the server has an
   // ElevenLabs key -- until we know, the microphone stays hidden rather than
@@ -761,6 +813,16 @@ export default function App() {
             <WordmarkIcon />
             <span className="wordmark-text">Warmline</span>
           </div>
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            title={theme === "dark" ? s.themeToLightLabel : s.themeToDarkLabel}
+            aria-label={theme === "dark" ? s.themeToLightLabel : s.themeToDarkLabel}
+            aria-pressed={theme === "dark"}
+          >
+            {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+          </button>
           <div className="lang-switcher" title={s.yourLanguageLabel}>
             <GlobeIcon />
             <select

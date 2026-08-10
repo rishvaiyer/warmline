@@ -40,6 +40,8 @@ export type UIStrings = {
   detectingLanguageButton: string;
   resultsInEnglishToggle: string;
   resultsInMyLanguageToggle: string;
+  themeToDarkLabel: string;
+  themeToLightLabel: string;
   yourLanguageLabel: string;
   callLanguageLabel: string;
   callLanguageSameOption: string;
@@ -120,6 +122,8 @@ export const EN: UIStrings = {
   detectingLanguageButton: "Detecting your language…",
   resultsInEnglishToggle: "View in English",
   resultsInMyLanguageToggle: "View in my language",
+  themeToDarkLabel: "Switch to dark",
+  themeToLightLabel: "Switch to light",
   yourLanguageLabel: "Your language",
   callLanguageLabel: "Call in a different language (optional)",
   callLanguageSameOption: "Same as my language",

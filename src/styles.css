@@ -151,6 +151,56 @@ body {
   }
 }
 
+/* Theme toggle, pinned top-left to balance the language pill on the right and
+   to stay clear of it when a long language name widens that pill. Warmline is
+   cream by default; this is the way out for anyone who needs dark. */
+.theme-toggle {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid #c9c4b8;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.theme-toggle:hover {
+  background: #fff;
+  border-color: var(--accent);
+}
+
+.theme-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.theme-toggle-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+/* Same translucent treatment the language pill gets on dark, so the two
+   header controls read as a matched pair. */
+:root[data-theme="dark"] .theme-toggle {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+:root[data-theme="dark"] .theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--accent);
+}
+
 /* ---------- Language-switch loading overlay ---------- */
 
 .locale-loading-overlay {
@@ -1005,112 +1055,120 @@ body {
   }
 }
 
-/* ---------- Dark mode ---------- */
+/* ---------- Dark mode ----------
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
+   Opt-in, NOT automatic. Warmline opens in the warm cream design for everyone,
+   whatever their OS is set to, because that is the identity of the product and
+   the first thing a nervous first-time visitor should see.
 
-    /* Deep warm charcoal, not brown -- green stays the accent */
-    --ink: #ece9e0;
-    --muted: #9aa39a;
-    --bg: #17181a;
-    --bg-wash-a: #1d211d;
-    --bg-wash-b: #141516;
-    --card-bg: #1e201c;
-    --border: #33362f;
-    --border-soft: #292b26;
+   Dark is still one tap away in the header, for anyone with light sensitivity
+   or who simply prefers it -- which matters for an accessibility-first
+   audience. The choice is remembered in localStorage and applied by
+   data-theme="dark" on <html> (set before first paint in index.html, so the
+   page never flashes cream at someone who chose dark). */
 
-    --accent: #4fae86;
-    --accent-hover: #6bc39d;
-    --accent-soft: #1f2f27;
-    --accent-ring: rgba(79, 174, 134, 0.32);
+:root[data-theme="dark"] {
+color-scheme: dark;
 
-    --amber: #d98a52;
-    --amber-soft: #2c2319;
+  /* Deep warm charcoal, not brown -- green stays the accent */
+  --ink: #ece9e0;
+  --muted: #9aa39a;
+  --bg: #17181a;
+  --bg-wash-a: #1d211d;
+  --bg-wash-b: #141516;
+  --card-bg: #1e201c;
+  --border: #33362f;
+  --border-soft: #292b26;
 
-    --success: #4fae86;
-    --success-soft: #1f2f27;
+  --accent: #4fae86;
+  --accent-hover: #6bc39d;
+  --accent-soft: #1f2f27;
+  --accent-ring: rgba(79, 174, 134, 0.32);
 
-    --error: #e8887a;
-    --error-soft: #2c1e1c;
+  --amber: #d98a52;
+  --amber-soft: #2c2319;
 
-    --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.45);
-    --shadow-button: 0 8px 20px -8px rgba(79, 174, 134, 0.35);
-    --shadow-button-hover: 0 12px 26px -8px rgba(79, 174, 134, 0.45);
-  }
+  --success: #4fae86;
+  --success-soft: #1f2f27;
 
-  .card {
-    background: var(--card-bg);
-  }
+  --error: #e8887a;
+  --error-soft: #2c1e1c;
 
-  .field textarea,
-  .field input,
-  .field select {
-    background-color: #23251f;
-    border-color: var(--border);
-    color: var(--ink);
-  }
+  --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.45);
+  --shadow-button: 0 8px 20px -8px rgba(79, 174, 134, 0.35);
+  --shadow-button-hover: 0 12px 26px -8px rgba(79, 174, 134, 0.45);
+}
 
-  .field textarea::placeholder,
-  .field input::placeholder {
-    color: #6f7568;
-  }
+:root[data-theme="dark"] .card {
+  background: var(--card-bg);
+}
 
-  .field textarea:focus-visible,
-  .field input:focus-visible,
-  .field select:focus-visible {
-    background-color: #23251f;
-  }
+:root[data-theme="dark"] .field textarea,
+:root[data-theme="dark"] .field input,
+:root[data-theme="dark"] .field select {
+  background-color: #23251f;
+  border-color: var(--border);
+  color: var(--ink);
+}
 
-  .field select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6l4 4 4-4' stroke='%234fae86' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 0.9rem center;
-  }
+:root[data-theme="dark"] .field textarea::placeholder,
+:root[data-theme="dark"] .field input::placeholder {
+  color: #6f7568;
+}
 
-  /* Language switcher: subtle translucent-light pill on dark, not a glaring
-     white block. */
-  .lang-switcher {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.16);
-  }
+:root[data-theme="dark"] .field textarea:focus-visible,
+:root[data-theme="dark"] .field input:focus-visible,
+:root[data-theme="dark"] .field select:focus-visible {
+  background-color: #23251f;
+}
 
-  .lang-switcher:hover {
-    background: rgba(255, 255, 255, 0.12);
-    border-color: var(--accent);
-  }
+:root[data-theme="dark"] .field select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6l4 4 4-4' stroke='%234fae86' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+}
 
-  .lang-switcher-select {
-    color: var(--ink);
-  }
+/* Language switcher: subtle translucent-light pill on dark, not a glaring
+   white block. */
+:root[data-theme="dark"] .lang-switcher {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+}
 
-  .target-row,
-  .plan-disclosure {
-    background: #23251f;
-  }
+:root[data-theme="dark"] .lang-switcher:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--accent);
+}
 
-  .primary-button {
-    color: #10130f;
-  }
+:root[data-theme="dark"] .lang-switcher-select {
+  color: var(--ink);
+}
 
-  .progress-dot {
-    background: var(--card-bg);
-  }
+:root[data-theme="dark"] .target-row,
+:root[data-theme="dark"] .plan-disclosure {
+  background: #23251f;
+}
 
-  .progress-step.is-current .progress-dot {
-    background: var(--ink);
-    color: #10130f;
-  }
+:root[data-theme="dark"] .primary-button {
+  color: #10130f;
+}
 
-  .reassurance-note {
-    color: #bfe0cd;
-    border-color: #2f4536;
-  }
+:root[data-theme="dark"] .progress-dot {
+  background: var(--card-bg);
+}
 
-  .result-item {
-    background: #1e201c;
-  }
+:root[data-theme="dark"] .progress-step.is-current .progress-dot {
+  background: var(--ink);
+  color: #10130f;
+}
+
+:root[data-theme="dark"] .reassurance-note {
+  color: #bfe0cd;
+  border-color: #2f4536;
+}
+
+:root[data-theme="dark"] .result-item {
+  background: #1e201c;
 }
 
 /* Voice-callback card on the results screen. */

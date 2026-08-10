@@ -11,6 +11,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <title>Warmline</title>
+    <!-- Apply a remembered dark choice BEFORE first paint. Warmline defaults to
+         its warm cream design for everyone, so the only thing this prevents is
+         a cream flash for someone who has deliberately chosen dark. Kept inline
+         and tiny on purpose: it has to run before the stylesheet paints. -->
+    <script>
+      try {
+        if (localStorage.getItem("warmline-theme") === "dark") {
+          document.documentElement.dataset.theme = "dark";
+        }
+      } catch (e) {
+        /* Private mode with storage blocked: stay on the cream default. */
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
