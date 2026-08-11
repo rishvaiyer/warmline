@@ -19,6 +19,8 @@ and gives you the answer back in writing, in your own language.
 &nbsp;
 ![License MIT](https://img.shields.io/badge/license-MIT-be6b35?style=for-the-badge)
 
+![Warmline interface](docs/screenshots/warmline-home.png)
+
 React 19 · TypeScript · Fastify · powered by [CALL-E](https://call-e.devpost.com/)
 
 </div>
