@@ -175,7 +175,7 @@ sandbox, and keep `ALLOW_REAL_CALLS` off unless you mean it.
 
 ## Offline evals
 
-Warmline includes 30 deterministic, synthetic eval cases for mission routing,
+Warmline includes 31 deterministic, synthetic eval cases for mission routing,
 translation boundaries, approval and booking rules, monetary-commitment detection,
 result normalization, ranking, and offline fallbacks. They require no provider keys
 and never place a call.

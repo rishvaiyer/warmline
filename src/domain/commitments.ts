@@ -30,6 +30,15 @@ export type CommitmentWarning = {
   quotes: string[];
 };
 
+export function commitmentWarningLogFields(warning: CommitmentWarning) {
+  return {
+    moneyCommitted: warning.moneyCommitted,
+    detailsShared: warning.detailsShared,
+    transcriptFlagged: warning.transcriptFlagged,
+    quoteCount: warning.quotes.length
+  };
+}
+
 // Injected into every mission's result schema, so the agent has to answer these
 // rather than leaving silence to be read as "no".
 const COMMITMENT_PROPERTIES = {

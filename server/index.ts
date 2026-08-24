@@ -12,7 +12,8 @@ import { getTemplate } from "../src/domain/registry.js";
 import {
   withCommitmentFields,
   extractTranscriptTurns,
-  buildCommitmentWarning
+  buildCommitmentWarning,
+  commitmentWarningLogFields
 } from "../src/domain/commitments.js";
 import { interpretIntent } from "../src/domain/interpret.js";
 import { translateMissionFields, translateResultStrings } from "../src/domain/translate.js";
@@ -395,7 +396,11 @@ app.post("/api/missions/run", async (request, reply) => {
       );
       if (commitmentWarning) {
         request.log.warn(
-          { missionId: mission.id, targetId: target.id, commitmentWarning },
+          {
+            missionId: mission.id,
+            targetId: target.id,
+            commitmentWarning: commitmentWarningLogFields(commitmentWarning)
+          },
           "Call may have committed the caller to a payment"
         );
         (normalized as CallResult<unknown>).commitmentWarning = commitmentWarning;

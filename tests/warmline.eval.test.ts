@@ -1,6 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { baseMissionSchema, baseCallPreamble } from "../src/domain/base.js";
-import { buildCommitmentWarning, extractTranscriptTurns, scanTranscriptForMoney, withCommitmentFields } from "../src/domain/commitments.js";
+import {
+  buildCommitmentWarning,
+  commitmentWarningLogFields,
+  extractTranscriptTurns,
+  scanTranscriptForMoney,
+  withCommitmentFields
+} from "../src/domain/commitments.js";
 import { interpretIntent } from "../src/domain/interpret.js";
 import { templates, getTemplate } from "../src/domain/registry.js";
 import { translateMissionFields, translateResultStrings } from "../src/domain/translate.js";
@@ -89,6 +95,8 @@ describe("translation boundaries and fallback preservation", () => {
       userLocale: "en-US",
       callLocale: "es",
       mode: "price",
+      callerName: "Rishva Iyer",
+      callbackNumber: "+12025550199",
       subject: "replacement key",
       question: "How much is it?",
       partySize: 2,
@@ -101,6 +109,8 @@ describe("translation boundaries and fallback preservation", () => {
       userLocale: "en-US",
       callLocale: "es",
       mode: "price",
+      callerName: "Rishva Iyer",
+      callbackNumber: "+12025550199",
       subject: "[es] replacement key",
       question: "[es] How much is it?",
       partySize: 2
@@ -241,6 +251,21 @@ describe("booking and monetary guardrails", () => {
       quotes: ["Yes, go ahead with the fee."]
     });
     expect(buildCommitmentWarning({ payment_committed: false }, [])).toBeUndefined();
+  });
+
+  it("keeps transcript quotes out of structured warning logs", () => {
+    const warning = buildCommitmentWarning(
+      { payment_committed: false },
+      [{ text: "Yes, go ahead with the fee using my private details." }]
+    );
+    expect(warning).toBeDefined();
+    expect(commitmentWarningLogFields(warning!)).toEqual({
+      moneyCommitted: false,
+      detailsShared: false,
+      transcriptFlagged: true,
+      quoteCount: 1
+    });
+    expect(JSON.stringify(commitmentWarningLogFields(warning!))).not.toContain("private details");
   });
 });
 
