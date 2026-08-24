@@ -75,16 +75,25 @@ async function translateBatch(
 }
 
 // Mission keys that are never free text: ids, the kind discriminator, locale
-// codes, and known enum-valued intake fields (reachability's `mode`). Target
-// phone numbers/ids live in a nested array and are already untouched since
-// this only looks at top-level string fields.
-const PROTECTED_MISSION_KEYS = new Set(["id", "kind", "userLocale", "callLocale", "mode"]);
+// codes, known enum-valued intake fields, and caller identity/contact fields.
+// Target phone numbers/ids live in a nested array and are already untouched
+// since this only looks at top-level string fields.
+const PROTECTED_MISSION_KEYS = new Set([
+  "id",
+  "kind",
+  "userLocale",
+  "callLocale",
+  "mode",
+  "callerName",
+  "callbackNumber"
+]);
 
 /**
  * Translate the free-text fields of a mission object from `from` to `to`.
  * Only touches string-valued fields that are not ids, the kind discriminator,
- * locale codes, or known enums; leaves phone numbers and non-string fields
- * untouched. Shallow: does not recurse into nested targets.
+ * locale codes, known enums, caller identity, or contact values; leaves phone
+ * numbers and non-string fields untouched. Shallow: does not recurse into
+ * nested targets.
  */
 export async function translateMissionFields<T extends Record<string, unknown>>(
   mission: T,
