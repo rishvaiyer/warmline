@@ -173,6 +173,17 @@ sandbox, and keep `ALLOW_REAL_CALLS` off unless you mean it.
   interpretation, marker-stub translation, offline locale detection, and mock
   calls, with no network requests at all.
 
+## Offline evals
+
+Warmline includes 30 deterministic, synthetic eval cases for mission routing,
+translation boundaries, approval and booking rules, monetary-commitment detection,
+result normalization, ranking, and offline fallbacks. They require no provider keys
+and never place a call.
+
+```bash
+pnpm eval
+```
+
 ## Quickstart
 
 ```bash
