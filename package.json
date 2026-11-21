@@ -9,7 +9,7 @@
     "dev:web": "vite",
     "build": "vite build && tsc -p tsconfig.server.json",
     "start": "node dist-server/server/index.js",
-    "test": "vitest run"
+    "test": "node --experimental-strip-types --test test/*.node.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

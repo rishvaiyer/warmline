@@ -139,11 +139,17 @@ Every CALL-E call is wrapped in:
 - **Approval-first review.** You confirm the plan before anything dials.
 - **Spoken AI disclosure.** The agent always says it is an AI.
 - **Server-side allowlist** (`CALLE_ALLOWED_NUMBERS`) and E.164 validation.
+- **Owner authorization.** Both real business calls and voice callbacks require
+  a private `WARMLINE_OWNER_TOKEN` in the `Authorization: Bearer` header.
+- **Bounded dispatch.** Each server process permits ten real call attempts in
+  a rolling ten-minute window, shared by business calls and callbacks.
 - **No booking, paying, or committing** on your behalf.
 - **Idempotency keys** per call, and a maximum of 5 targets.
-- **Off by default.** Real calls run only when `ALLOW_REAL_CALLS=true`,
-  `CALLE_API_KEY` is set, and the number is allowlisted. Otherwise Warmline uses
-  a deterministic mock engine.
+- **Off by default.** Without `ALLOW_REAL_CALLS=true` and `CALLE_API_KEY`,
+  Warmline uses its mock engine. With real mode opted in, missing owner or
+  recipient configuration blocks dispatch with HTTP 503. Missing or incorrect
+  owner authorization returns 401, a disallowed number returns 403, and the
+  call-attempt limit returns 429 with `Retry-After`.
 
 ## Under the hood
 
@@ -191,7 +197,33 @@ Copy `.env.example` to `.env` and set what you need:
 |--------------|--------------|
 | Nothing | Keyword interpretation, stub translation, mock calls. Fully offline. |
 | `ANTHROPIC_API_KEY` **or** `OPENAI_API_KEY` | Real LLM interpretation, translation, and UI localization. Calls still mocked. |
-| An LLM key **+** `ALLOW_REAL_CALLS=true` **+** `CALLE_API_KEY` **+** `CALLE_ALLOWED_NUMBERS` | Real phone calls via CALL-E, restricted to the allowlisted numbers. |
+| `ALLOW_REAL_CALLS=true` **+** `CALLE_API_KEY` **+** `WARMLINE_OWNER_TOKEN` **+** `CALLE_ALLOWED_NUMBERS` | Owner-authorized real phone calls via CALL-E, restricted to the allowlisted numbers and call-attempt limit. |
+
+For real calls, generate a random owner token of at least 32 characters and
+store it as a private server environment variable. API clients must send it in
+the bearer authorization header over HTTPS. The browser demo has no owner-token
+entry screen. To use its interface with real calls, put it behind an
+authenticated owner gateway that injects the bearer header for
+`/api/missions/run` and `/api/missions/callback`, strips any client-supplied
+authorization header, and prevents access to the backend around the gateway.
+The mock interface works directly without this gateway.
+
+The same allowlist covers business targets and the person receiving a voice
+callback. A mission containing any disallowed target is refused before its
+first call. Each accepted target reserves one attempt; a callback reserves one.
+Failed provider calls also consume attempts. Limits are held in memory and
+reset on process restart. Multiple server replicas need a shared limiter at the
+gateway. Language-model interpretation and translation keep their existing
+configuration and are separate from the phone-dispatch boundary.
+
+Run the dispatch-boundary checks with Node.js 22.11 or newer:
+
+```bash
+pnpm test
+```
+
+These checks exercise mock access, owner authorization, recipient checks and
+call limits without contacting a provider.
 
 ## Project structure
 

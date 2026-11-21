@@ -12,6 +12,7 @@ import { getTemplate } from "../src/domain/registry.js";
 import { interpretIntent } from "../src/domain/interpret.js";
 import { translateMissionFields, translateResultStrings } from "../src/domain/translate.js";
 import { llmComplete, hasLLMKey } from "../src/domain/llm.js";
+import { createCallAuthorization } from "./call-authorization.js";
 
 const app = Fastify({ logger: true, bodyLimit: 64 * 1024 });
 const port = Number(process.env.PORT || 8787);
@@ -73,6 +74,11 @@ function extractJsonBlock(text: string): string {
 // disclosure before it dials.
 const realCallsEnabled =
   process.env.ALLOW_REAL_CALLS === "true" && Boolean(process.env.CALLE_API_KEY);
+const authorizeCalls = createCallAuthorization({
+  enabled: realCallsEnabled,
+  ownerToken: process.env.WARMLINE_OWNER_TOKEN,
+  allowedNumbers: process.env.CALLE_ALLOWED_NUMBERS
+});
 
 const inFlightKeys = new Set<string>();
 
@@ -88,7 +94,7 @@ app.get("/api/health", async () => ({
   ok: true,
   mode: realCallsEnabled ? "real" : "mock",
   realCallsConfigured: realCallsEnabled,
-  realCallProtection: realCallsEnabled ? "approval_and_disclosure" : "disabled"
+  realCallProtection: realCallsEnabled ? "owner_authorization_allowlist_and_call_limit" : "disabled"
 }));
 
 app.post("/api/intent/interpret", async (request, reply) => {
@@ -253,6 +259,12 @@ app.post("/api/missions/run", async (request, reply) => {
     return reply.code(422).send({ error: String((error as Error).message) });
   }
 
+  const refusal = authorizeCalls(request.headers.authorization, mission.targets.map((target) => target.phoneE164));
+  if (refusal) {
+    if (refusal.retryAfter) reply.header("Retry-After", String(refusal.retryAfter));
+    return reply.code(refusal.status).send({ error: refusal.error });
+  }
+
   if (!realCallsEnabled) {
     // Mock engine speaks English; also render it in the person's language so
     // they read the outcome in their own words, while keeping the English copy
@@ -354,16 +366,22 @@ app.post("/api/missions/run", async (request, reply) => {
 // rather hear it than read it. Same real-calls gating as any other call; mock
 // mode just acknowledges without dialing.
 app.post("/api/missions/callback", async (request, reply) => {
-  const body = (request.body ?? {}) as { phoneE164?: string; locale?: string; summary?: string };
-  const phone = (body.phoneE164 ?? "").trim();
-  const locale = (body.locale ?? "en-US").trim() || "en-US";
-  const summary = (body.summary ?? "").trim();
+  const body = (request.body ?? {}) as { phoneE164?: unknown; locale?: unknown; summary?: unknown };
+  const phone = typeof body.phoneE164 === "string" ? body.phoneE164.trim() : "";
+  const locale = typeof body.locale === "string" ? body.locale.trim() || "en-US" : "en-US";
+  const summary = typeof body.summary === "string" ? body.summary.trim() : "";
 
   if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
     return reply.code(400).send({ error: "A phone number in E.164 format is required (e.g. +12025550123)." });
   }
   if (!summary) {
     return reply.code(400).send({ error: "There is nothing to read back yet." });
+  }
+
+  const refusal = authorizeCalls(request.headers.authorization, [phone]);
+  if (refusal) {
+    if (refusal.retryAfter) reply.header("Retry-After", String(refusal.retryAfter));
+    return reply.code(refusal.status).send({ error: refusal.error });
   }
 
   if (!realCallsEnabled) {
